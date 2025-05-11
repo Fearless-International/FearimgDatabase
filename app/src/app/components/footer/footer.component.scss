@@ -1,0 +1,67 @@
+.app-footer {
+  background-color: #000000; /* Black background */
+  color: #ffffff; /* White text */
+  padding: 0.2rem 1rem;
+  border: none;
+}
+
+
+
+.footer-bottom p {
+  margin: 0.5rem 0;
+}
+
+.footer-bottom a {
+  color: #ff9800; /* Orange link color */
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.footer-bottom a:hover {
+  text-decoration: underline;
+}
+
+.footer-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.footer-section {
+  margin: 1rem 0;
+}
+
+.footer-section h3 {
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #ff9800; /* Orange color for section headings */
+}
+
+.footer-section p {
+  margin-bottom: 0.5rem;
+  color: #bbb; /* Lighter gray text for paragraphs */
+}
+
+.footer-section .mat-button {
+  display: block;
+  text-align: left;
+  color: white;
+}
+
+.social-links {
+  display: flex;
+  gap: 1rem;
+}
+
+.social-links .mat-icon-button {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-radius: 50%;
+  padding: 10px;
+}
+
+.social-links .mat-icon-button:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}

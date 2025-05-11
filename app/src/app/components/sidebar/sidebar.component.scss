@@ -1,0 +1,99 @@
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400..800&display=swap');
+.font-syne {
+  font-family: "Syne", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 800; /* Set a default weight */
+  font-style: normal;
+  
+}
+.p-sidebar {
+  background-color: #000; /* Black background */
+  color: #fff;
+  width: 250px;
+  padding: 1rem;
+  border-radius: 12px;
+}
+
+.p-sidebar-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.p-sidebar-logo h1 {
+  font-size: 1.5rem;
+  color: #fff;
+  font-family: "Syne", sans-serif;
+}
+
+.p-sidebar-section {
+  margin-top: 20px;
+}
+
+.p-sidebar-section h3 {
+  font-size: 1rem;
+  margin-bottom: 10px;
+  color: #fff;
+  border-bottom: 1px solid #fff;
+  padding-bottom: 5px;
+}
+
+.p-sidebar-section ul {
+  list-style: none;
+  padding: 0;
+}
+
+.p-sidebar-section ul li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 15px;
+  margin: 5px 0;
+  background-color: #1c1c1c; /* Darker black for items */
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.p-sidebar-section ul li:hover {
+  background-color: #333; /* Slightly lighter on hover */
+}
+
+.p-sidebar-section ul li i {
+  font-size: 1.2rem;
+  color: #ff9800; /* Add some color to icons */
+  margin-right: 10px;
+}
+
+.p-sidebar-section ul li span {
+  flex: 1;
+  color: #fff;
+}
+
+.p-sidebar-section ul li small {
+  font-size: 0.8rem;
+  color: #bdbdbd;
+}
+
+.p-sidebar-profile {
+  display: flex;
+  align-items: center;
+  margin-top: 20px;
+}
+
+.p-sidebar-profile p-avatar {
+  margin-right: 10px;
+}
+
+.p-sidebar-profile .user-details h4 {
+  margin: 0;
+  font-size: 1rem;
+  color: #fff;
+}
+
+.p-sidebar-profile .user-details p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #bdbdbd;
+}
