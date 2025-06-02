@@ -1,0 +1,884 @@
+Auth.service.ts{import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { BehaviorSubject, Observable, of } from 'rxjs';
+import { map, catchError, tap } from 'rxjs/operators';
+import { JwtHelperService } from '@auth0/angular-jwt';
+import { environment } from '../../../environments/environment';
+import { User } from '../models/user';
+
+@Injectable({
+  providedIn: 'root'
+})
+export class AuthService {
+  private currentUserSubject: BehaviorSubject<User | null>;
+  public currentUser: Observable<User | null>;
+  private jwtHelper = new JwtHelperService();
+
+  constructor(private http: HttpClient) {
+    const storedUser = localStorage.getItem('user');
+    this.currentUserSubject = new BehaviorSubject<User | null>(
+      storedUser ? JSON.parse(storedUser) : null
+    );
+    this.currentUser = this.currentUserSubject.asObservable();
+  }
+
+  public get currentUserValue(): User | null {
+    return this.currentUserSubject.value;
+  }
+
+  login(token: string, user: User): boolean {
+    if (!token || !user) {
+      return false;
+    }
+
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(user));
+    this.currentUserSubject.next(user);
+    return true;
+  }
+
+  logout(): void {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    this.currentUserSubject.next(null);
+  }
+
+  updateCurrentUser(user: User): void {
+    this.currentUserSubject.next(user);
+  }
+
+  getToken(): string | null {
+    return localStorage.getItem('token');
+  }
+
+  // DEBUG VERSION to find the issue
+  isAuthenticated(): boolean {
+    console.log('localStorage contents:', {
+      token: localStorage.getItem('token'),
+      user: localStorage.getItem('user')
+    });
+    
+    const token = localStorage.getItem('token');
+    console.log('Token check:', token ? 'Token exists' : 'No token');
+    
+    if (!token) {
+      return false;
+    }
+    
+    try {
+      const isExpired = this.jwtHelper.isTokenExpired(token);
+      console.log('Token expired:', isExpired);
+      return !isExpired;
+    } catch (error) {
+      console.error('Error checking token:', error);
+      return false;
+    }
+  }
+
+  isTokenExpired(): boolean {
+    const token = this.getToken();
+    if (!token) return true;
+    
+    try {
+      return this.jwtHelper.isTokenExpired(token);
+    } catch {
+      return true;
+    }
+  }
+
+  getUserProfile(): Observable<User> {
+    return this.http.get<User>(`${environment.apiUrl}/users/me?populate=*`)
+      .pipe(
+        tap(user => {
+          // Update stored user data
+          localStorage.setItem('user', JSON.stringify(user));
+          this.currentUserSubject.next(user);
+        }),
+        catchError(error => {
+          console.error('Error fetching user profile:', error);
+          return of(this.currentUserValue as User);
+        })
+      );
+  }
+}}
+
+not usermodel.ts but rather user.ts{
+export interface User {
+  id: number;
+  username: string;
+  email: string;
+  provider?: string;
+  confirmed?: boolean;
+  blocked?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  avatar?: any;
+  role?: any;
+}}
+
+dashboard.service.ts{import { Injectable } from '@angular/core';
+import { Observable, of } from 'rxjs';
+import { catchError, map } from 'rxjs/operators';
+import { ApiService } from '../../../core/services/api.service';
+
+export interface DashboardStats {
+  totalBookings: number;
+  pendingBookings: number;
+  completedBookings: number;
+  revenue: number;
+  revenueGrowth: number;
+  bookingGrowth: number;
+}
+
+export interface ChartData {
+  labels: string[];
+  bookings: number[];
+  revenue: number[];
+}
+
+@Injectable({
+  providedIn: 'root'
+})
+export class DashboardService {
+  constructor(private apiService: ApiService) {}
+
+  getDashboardStats(): Observable<DashboardStats> {
+    return this.apiService.get<any>('dashboard/stats').pipe(
+      map(response => response.data || {
+        totalBookings: 0,
+        pendingBookings: 0,
+        completedBookings: 0,
+        revenue: 0,
+        revenueGrowth: 0,
+        bookingGrowth: 0
+      }),
+      catchError(error => {
+        console.error('Error fetching dashboard stats:', error);
+        return of({
+          totalBookings: 0,
+          pendingBookings: 0,
+          completedBookings: 0,
+          revenue: 0,
+          revenueGrowth: 0,
+          bookingGrowth: 0
+        });
+      })
+    );
+  }
+
+  getChartData(period: string): Observable<ChartData> {
+    return this.apiService.get<any>(`dashboard/chart-data?period=${period}`).pipe(
+      map(response => response.data || {
+        labels: [],
+        bookings: [],
+        revenue: []
+      }),
+      catchError(error => {
+        console.error('Error fetching chart data:', error);
+        return of({
+          labels: [],
+          bookings: [],
+          revenue: []
+        });
+      })
+    );
+  }
+
+  getRecentBookings(): Observable<any[]> {
+    return this.apiService.get<any>('bookings', {
+      'populate': '*',
+      'sort': 'createdAt:desc',
+      'pagination': {
+        'page': 1,
+        'pageSize': 5
+      }
+    }).pipe(
+      map(response => {
+        if (response.data) {
+          return response.data.map((item: any) => ({
+            id: item.id,
+            client: item.attributes.user?.name || 'Unknown',
+            date: new Date(item.attributes.date + 'T' + item.attributes.time),
+            status: item.attributes.status
+          }));
+        }
+        return [];
+      }),
+      catchError(error => {
+        console.error('Error fetching recent bookings:', error);
+        return of([]);
+      })
+    );
+  }
+}}
+
+dashboard.component.ts{import { Component, OnInit, OnDestroy } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { RouterModule } from '@angular/router';
+import { ChartModule } from 'primeng/chart';
+import { CardModule } from 'primeng/card';
+import { ButtonModule } from 'primeng/button';
+import { TableModule } from 'primeng/table';
+import { ToastModule } from 'primeng/toast';
+import { SelectButtonModule } from 'primeng/selectbutton';
+import { MessageService } from 'primeng/api';
+import { DashboardService, ChartData, DashboardStats } from './services/dashboard.service';
+import { AuthService } from '../../core/services/auth.service';
+import { animate, style, transition, trigger } from '@angular/animations';
+import { Subscription, interval } from 'rxjs';
+import 'primeicons/primeicons.css';
+
+@Component({
+  selector: 'app-dashboard',
+  standalone: true,
+  imports: [
+    CommonModule,
+    RouterModule,
+    FormsModule,
+    ChartModule,
+    CardModule,
+    ButtonModule,
+    TableModule,
+    ToastModule,
+    SelectButtonModule,
+  ],
+  providers: [MessageService],
+  animations: [
+    trigger('fadeInUp', [
+      transition(':enter', [
+        style({ opacity: 0, transform: 'translateY(20px)' }),
+        animate('0.3s ease-out', style({ opacity: 1, transform: 'translateY(0)' }))
+      ])
+    ])
+  ],
+  templateUrl: './dashboard.component.html',
+  styleUrls: ['./dashboard.component.scss']
+})
+export class DashboardComponent implements OnInit, OnDestroy {
+  chartData: any;
+  chartOptions: any;
+  recentBookings: any[] = [];
+  statistics: DashboardStats = {
+    totalBookings: 0,
+    pendingBookings: 0,
+    completedBookings: 0,
+    revenue: 0,
+    revenueGrowth: 0,
+    bookingGrowth: 0
+  };
+  
+  loading = false;
+  periodOptions = [
+    { label: 'Week', value: 'week' },
+    { label: 'Month', value: 'month' },
+    { label: 'Year', value: 'year' }
+  ];
+  selectedPeriod = 'month';
+  
+  // Use actual current date and time
+  currentTime: Date = new Date();
+  // Will be populated from auth service
+  currentUser: string = '';
+  protected Math = Math;
+  
+  private subscriptions: Subscription[] = [];
+  
+  constructor(
+    private dashboardService: DashboardService,
+    private messageService: MessageService,
+    private authService: AuthService
+  ) {}
+  
+  ngOnInit() {
+    this.initChartOptions();
+    this.loadDashboardData();
+    this.startClockUpdate();
+    this.getCurrentUser();
+  }
+  
+  ngOnDestroy() {
+    this.subscriptions.forEach(sub => sub.unsubscribe());
+  }
+  
+  private getCurrentUser() {
+    // Get the current user's username from the auth service
+    const user = this.authService.currentUserValue;
+    if (user) {
+      this.currentUser = user.username || '';
+    }
+    
+    // Subscribe to changes in case the user data updates
+    this.subscriptions.push(
+      this.authService.currentUser.subscribe(user => {
+        if (user) {
+          this.currentUser = user.username || '';
+        }
+      })
+    );
+  }
+  
+  private initChartOptions() {
+    this.chartOptions = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          labels: {
+            color: '#ffffff'
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: {
+            color: '#ffffff'
+          },
+          grid: {
+            color: 'rgba(255,255,255,0.1)'
+          }
+        },
+        y: {
+          ticks: {
+            color: '#ffffff'
+          },
+          grid: {
+            color: 'rgba(255,255,255,0.1)'
+          }
+        }
+      }
+    };
+  }
+  
+  private loadDashboardData() {
+    this.loading = true;
+    
+    // Get dashboard stats
+    this.subscriptions.push(
+      this.dashboardService.getDashboardStats().subscribe({
+        next: stats => {
+          this.statistics = stats;
+        },
+        error: error => {
+          console.error('Failed to load dashboard stats:', error);
+          this.showErrorToast('Failed to load dashboard statistics');
+        }
+      })
+    );
+    
+    // Get chart data
+    this.loadChartData();
+    
+    // Get recent bookings
+    this.subscriptions.push(
+      this.dashboardService.getRecentBookings().subscribe({
+        next: bookings => {
+          this.recentBookings = bookings;
+          this.loading = false;
+        },
+        error: error => {
+          console.error('Failed to load recent bookings:', error);
+          this.showErrorToast('Failed to load recent bookings');
+          this.loading = false;
+        }
+      })
+    );
+  }
+  
+  private loadChartData() {
+    this.subscriptions.push(
+      this.dashboardService.getChartData(this.selectedPeriod).subscribe({
+        next: data => {
+          this.chartData = {
+            labels: data.labels,
+            datasets: [
+              {
+                label: 'Bookings',
+                data: data.bookings,
+                fill: false,
+                borderColor: '#42A5F5',
+                tension: 0.4
+              },
+              {
+                label: 'Revenue',
+                data: data.revenue,
+                fill: false,
+                borderColor: '#66BB6A',
+                tension: 0.4
+              }
+            ]
+          };
+        },
+        error: error => {
+          console.error('Failed to load chart data:', error);
+          this.showErrorToast('Failed to load chart data');
+        }
+      })
+    );
+  }
+  
+  private startClockUpdate() {
+    // Update time every second
+    this.subscriptions.push(
+      interval(1000).subscribe(() => {
+        this.currentTime = new Date();
+      })
+    );
+  }
+  
+  onPeriodChange(event: any) {
+    this.loadChartData();
+  }
+  
+  manualRefresh() {
+    this.loadDashboardData();
+    this.messageService.add({
+      severity: 'info',
+      summary: 'Data Refreshed',
+      detail: 'Dashboard data has been updated'
+    });
+  }
+  
+  private showErrorToast(message: string) {
+    this.messageService.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: message
+    });
+  }
+}}
+
+dashboard.component.html{<div class="dashboard-container" [@fadeInUp]>
+  <!-- Header Section with Time and User -->
+  <div class="dashboard-header">
+    <div class="welcome-section">
+      <h1>Welcome back, {{currentUser}}</h1>
+      <p class="current-time">{{currentTime | date:'yyyy-MM-dd HH:mm:ss'}} UTC</p>
+    </div>
+    
+    <div class="d-flex justify-content-end mb-3">
+      <button pButton label="Refresh Data" icon="pi pi-refresh" 
+              class="p-button-outlined" (click)="manualRefresh()"
+              [disabled]="loading"></button>
+    </div>
+    
+    <div class="period-selector">
+      <p-selectButton style="gap: 20px; font-size: 10px; background-color: #454545; padding: 15px; color: white; border-radius: 5px;" 
+        [options]="periodOptions" 
+        [(ngModel)]="selectedPeriod"
+        (onChange)="onPeriodChange($event)"
+      ></p-selectButton>
+    </div>
+  </div>
+
+  <!-- Statistics Cards -->
+  <div class="grid">
+    <div class="col-12 md:col-6 lg:col-3" *ngFor="let stat of [
+      { icon: 'calendar', label: 'Total Bookings', value: statistics.totalBookings, growth: statistics.bookingGrowth },
+      { icon: 'clock', label: 'Pending', value: statistics.pendingBookings },
+      { icon: 'check-circle', label: 'Completed', value: statistics.completedBookings },
+      { icon: 'dollar', label: 'Revenue', value: statistics.revenue, prefix: '$', growth: statistics.revenueGrowth }
+    ]">
+      <p-card styleClass="stats-card">
+        <div class="stats-content">
+          <div class="stats-icon">
+            <i class="pi pi-{{stat.icon}}"></i>
+          </div>
+          <div class="stats-info">
+            <h3>{{stat.label}}</h3>
+            <h2>{{stat.prefix || ''}}{{stat.value | number}}</h2>
+            <div class="growth-indicator" *ngIf="stat.growth !== undefined">
+              <i class="pi" [ngClass]="stat.growth >= 0 ? 'pi-arrow-up' : 'pi-arrow-down'"></i>
+              <span [ngClass]="stat.growth >= 0 ? 'positive' : 'negative'">
+                {{Math.abs(stat.growth)}}%
+              </span>
+            </div>
+          </div>
+        </div>
+      </p-card>
+    </div>
+  </div>
+
+  <!-- Chart and Recent Bookings -->
+  <div class="grid mt-4">
+    <div class="col-12 lg:col-8">
+      <p-card header="Booking Analytics">
+        <p-chart type="line" [data]="chartData" [options]="chartOptions" height="400"></p-chart>
+      </p-card>
+    </div>
+    <div class="col-12 lg:col-4">
+      <p-card header="Recent Bookings">
+        <p-table [value]="recentBookings" [scrollable]="true" scrollHeight="400px">
+          <ng-template pTemplate="header">
+            <tr>
+              <th>Client</th>
+              <th>Date</th>
+              <th>Status</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-booking>
+            <tr>
+              <td>{{booking.client}}</td>
+              <td>{{booking.date | date:'short'}}</td>
+              <td>
+                <span [class]="'status-badge status-' + booking.status.toLowerCase()">
+                  {{booking.status}}
+                </span>
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </p-card>
+    </div>
+  </div>
+</div>
+
+<p-toast></p-toast>}
+
+booking.service.ts{import { Injectable } from '@angular/core';
+import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
+import { ApiService } from '../../../core/services/api.service';
+import { Booking } from '../models/booking.model';
+
+@Injectable({
+  providedIn: 'root'
+})
+export class BookingService {
+  constructor(private apiService: ApiService) {}
+
+  getBookings(filters: any = {}): Observable<Booking[]> {
+    const params = {
+      'populate': '*',
+      'sort': 'createdAt:desc',
+      ...filters
+    };
+    
+    return this.apiService.get<any>('bookings', params).pipe(
+      map(response => {
+        if (response.data) {
+          return response.data.map((item: any) => this.mapBookingData(item));
+        }
+        return [];
+      })
+    );
+  }
+
+  getBooking(id: number): Observable<Booking> {
+    return this.apiService.get<any>(`bookings/${id}?populate=*`).pipe(
+      map(response => this.mapBookingData(response.data))
+    );
+  }
+
+  createBooking(bookingData: any): Observable<Booking> {
+    const payload = {
+      data: bookingData
+    };
+    
+    return this.apiService.post<any>('bookings', payload).pipe(
+      map(response => this.mapBookingData(response.data))
+    );
+  }
+
+  updateBooking(id: number, bookingData: any): Observable<Booking> {
+    const payload = {
+      data: bookingData
+    };
+    
+    return this.apiService.put<any>(`bookings/${id}`, payload).pipe(
+      map(response => this.mapBookingData(response.data))
+    );
+  }
+
+  deleteBooking(id: number): Observable<any> {
+    return this.apiService.delete<any>(`bookings/${id}`);
+  }
+
+  private mapBookingData(data: any): Booking {
+    return {
+      id: data.id,
+      service: data.attributes.service,
+      date: data.attributes.date,
+      time: data.attributes.time,
+      notes: data.attributes.notes,
+      status: data.attributes.status,
+      user: data.attributes.user && {
+        name: data.attributes.user.name,
+        email: data.attributes.user.email,
+        phone: data.attributes.user.phone
+      },
+      createdAt: data.attributes.createdAt,
+      updatedAt: data.attributes.updatedAt
+    };
+  }
+}}
+
+import { Injectable } from '@angular/core';
+import { Observable } from 'rxjs';
+import { map, tap } from 'rxjs/operators';
+import { ApiService } from '../../../core/services/api.service';
+import { AuthService } from '../../../core/services/auth.service';
+import { User } from '../../../core/models/user';
+
+@Injectable({
+  providedIn: 'root'
+})
+export class ProfileService {
+  constructor(
+    private apiService: ApiService,
+    private authService: AuthService
+  ) {}
+
+  getUserProfile(): Observable<User> {
+    return this.authService.getUserProfile();
+  }
+
+  updateProfile(userData: Partial<User>): Observable<User> {
+    const userId = this.authService.currentUserValue?.id;
+    if (!userId) {
+      throw new Error('User ID not found');
+    }
+    
+    const payload = {
+      data: userData
+    };
+    
+    return this.apiService.put<any>(`users/${userId}`, payload).pipe(
+      map(response => response),
+      tap(user => {
+        // Update local storage and auth service
+        const currentUser = this.authService.currentUserValue;
+        if (currentUser) {
+          const updatedUser = { ...currentUser, ...user };
+          localStorage.setItem('user', JSON.stringify(updatedUser));
+          this.authService.updateCurrentUser(updatedUser);
+        }
+      })
+    );
+  }
+
+  updatePassword(currentPassword: string, newPassword: string, confirmPassword: string): Observable<any> {
+    const payload = {
+      currentPassword,
+      password: newPassword,
+      passwordConfirmation: confirmPassword
+    };
+    
+    return this.apiService.post<any>('auth/change-password', payload);
+  }
+
+  uploadAvatar(file: File): Observable<any> {
+    const userId = this.authService.currentUserValue?.id;
+    if (!userId) {
+      throw new Error('User ID not found');
+    }
+    
+    const formData = new FormData();
+    formData.append('files', file);
+    formData.append('ref', 'user');
+    formData.append('refId', userId.toString());
+    formData.append('field', 'avatar');
+    
+    return this.apiService.post<any>('upload', formData);
+  }
+}
+
+message.service.ts{import { Injectable } from '@angular/core';
+import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
+import { ApiService } from '../../../core/services/api.service';
+import { Message } from '../models/message.model';
+
+@Injectable({
+  providedIn: 'root'
+})
+export class MessageService {
+  constructor(private apiService: ApiService) {}
+
+  getMessages(filters: any = {}): Observable<Message[]> {
+    const params = {
+      'populate': '*',
+      'sort': 'createdAt:desc',
+      ...filters
+    };
+    
+    return this.apiService.get<any>('messages', params).pipe(
+      map(response => {
+        if (response.data) {
+          return response.data.map((item: any) => this.mapMessageData(item));
+        }
+        return [];
+      })
+    );
+  }
+
+  getMessage(id: number): Observable<Message> {
+    return this.apiService.get<any>(`messages/${id}?populate=*`).pipe(
+      map(response => this.mapMessageData(response.data))
+    );
+  }
+
+  sendMessage(message: Message): Observable<Message> {
+    const payload = {
+      data: {
+        subject: message.subject,
+        content: message.content,
+        recipient: message.recipient,
+        sender: message.sender,
+        read: false
+      }
+    };
+    
+    return this.apiService.post<any>('messages', payload).pipe(
+      map(response => this.mapMessageData(response.data))
+    );
+  }
+
+  deleteMessage(id: number): Observable<void> {
+    return this.apiService.delete<void>(`messages/${id}`);
+  }
+
+  respondToMessage(id: number, content: string): Observable<Message> {
+    const payload = {
+      data: {
+        content: content
+      }
+    };
+
+    return this.apiService.post<any>(`messages/${id}/responses`, payload).pipe(
+      map(response => this.mapMessageData(response.data))
+    );
+  }
+
+  markAsRead(id: number): Observable<Message> {
+    const payload = {
+      data: {
+        read: true
+      }
+    };
+    
+    return this.apiService.put<any>(`messages/${id}`, payload).pipe(
+      map(response => this.mapMessageData(response.data))
+    );
+  }
+
+  private mapMessageData(data: any): Message {
+    return {
+      id: data.id,
+      subject: data.attributes.subject,
+      content: data.attributes.content,
+      sender: data.attributes.sender,
+      recipient: data.attributes.recipient,
+      read: data.attributes.read,
+      createdAt: data.attributes.createdAt,
+      updatedAt: data.attributes.updatedAt,
+      responses: data.attributes.responses || []
+    };
+  }
+}}
+
+header.compnent.ts{header.component.html{<mat-toolbar color="primary" class="app-header">
+  <div class="toolbar-left">
+    <button mat-icon-button (click)="toggleSidebar()" *ngIf="isHandset">
+      <mat-icon>menu</mat-icon>
+    </button>
+    <div class="app-logo">
+      <span class="brand-name">Fearless</span>
+      <span class="tag-line">Dashboard</span>
+    </div>
+  </div>
+  
+  <div class="toolbar-right">
+    <button mat-icon-button [matMenuTriggerFor]="notificationsMenu">
+      <mat-icon [matBadge]="'5'" matBadgeColor="accent">notifications</mat-icon>
+    </button>
+    
+    <button mat-icon-button [matMenuTriggerFor]="userMenu">
+      <mat-icon>account_circle</mat-icon>
+    </button>
+  </div>
+  
+  <!-- Notifications Menu -->
+  <mat-menu #notificationsMenu="matMenu" class="notifications-menu">
+    <div class="menu-header">
+      <h4>Notifications</h4>
+    </div>
+    <div class="notification-list">
+      <button mat-menu-item *ngFor="let i of [1, 2, 3, 4, 5]">
+        <mat-icon color="accent">event</mat-icon>
+        <span>New booking confirmation</span>
+        <span class="notification-time">2 hours ago</span>
+      </button>
+    </div>
+    <div class="menu-footer">
+      <button mat-button color="primary" routerLink="/notifications">View All</button>
+    </div>
+  </mat-menu>
+  
+  <!-- User Menu -->
+  <mat-menu #userMenu="matMenu">
+    <button mat-menu-item routerLink="/profile">
+      <mat-icon>person</mat-icon>
+      <span>My Profile</span>
+    </button>
+    <button mat-menu-item (click)="logout()">
+      <mat-icon>logout</mat-icon>
+      <span>Logout</span>
+    </button>
+  </mat-menu>
+</mat-toolbar>}
+
+header.component.ts{import { Component, Input } from '@angular/core';
+import { MatSidenav } from '@angular/material/sidenav';
+import { Router } from '@angular/router';
+import { AuthService } from '../../../core/services/auth.service';
+import { MatToolbarModule } from '@angular/material/toolbar';
+import { MatSidenavModule } from '@angular/material/sidenav';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatListModule } from '@angular/material/list';
+import { MatCardModule } from '@angular/material/card';
+import { CommonModule } from '@angular/common';
+
+import { MatBadgeModule } from '@angular/material/badge';
+import { MatMenuModule } from '@angular/material/menu';
+
+@Component({
+  selector: 'app-header',
+  templateUrl: './header.component.html',
+  styleUrls: ['./header.component.scss'],
+  standalone: true,
+  imports: [
+    MatToolbarModule,
+    MatSidenavModule,
+    MatButtonModule,
+    MatIconModule,
+    MatListModule,
+    MatCardModule,
+    CommonModule,
+    MatBadgeModule,
+    MatMenuModule
+  ]
+})
+export class HeaderComponent {
+  @Input() drawer!: MatSidenav;
+  @Input() isHandset: boolean | null = false;
+  
+  constructor(
+    private router: Router,
+    private authService: AuthService
+  ) {}
+  
+  toggleSidebar(): void {
+    this.drawer.toggle();
+  }
+  
+  logout(): void {
+    this.authService.logout();
+    // Redirect to the React app login page
+    window.location.href = window.location.origin.replace('4200', '5173');
+  }
+}}
