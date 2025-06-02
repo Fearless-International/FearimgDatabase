@@ -1,0 +1,3000 @@
+Hello,
+I require assistance in developing a robust user dashboard application using Angular, integrated with PrimeNG and Material.js, to connect seamlessly with my Strapi backend. While I have implemented the project previously, the results were unsatisfactory due to its development within a Vite environment. For the new implementation, I will provide all necessary resources to ensure the application is built successfully.
+The application workflow is as follows: users will log in and register through an existing system built with React, which is already operational. Upon successful login, users will be redirected to the Angular-based dashboard. There is no need to create a new login and registration system in Angular, as this functionality is already handled.
+The Angular dashboard will interact with a PostgreSQL database managed by Strapi. Existing integration codes are available to expedite development. Users can access the dashboard only after successfully logging in via React. Key dashboard features include:
+Booking services.
+Viewing and tracking messages sent through the React-built "Contact Us" form. The dashboard should display the total number of messages sent by the user and user  should also view responses from the admin.
+Managing user profiles effectively.
+The application should maintain the current dark theme, with a fixed and responsive sidebar menu and footer. To enhance user experience, page interactions should be smooth and avoid reloads; instead, a blue progress bar should indicate page loading status.
+I will provide the content and source code from the previous implementation for reference. However, this is to serve as a guide, as the new project must be a standalone Angular application, independent of Vite. Additionally, the previous implementation faced a page reload issue after successful login, which must be resolved in this new iteration.
+Ultimately, I am looking for a pure, robust Angular dashboard leveraging the capabilities of PrimeNG and Material.js.
+Thank you for your assistance!. Below are my codes:F:\fearlessagency\src\components\auth\SignInForm.jsx{import { useForm } from "react-hook-form";
+import { Link, useNavigate } from "react-router-dom";
+import { useState } from "react";
+import StarImg from "../../assets/images/v1/star2.png";
+import Field from "../common/Field";
+import { loginUser } from "../../services/authApi";
+function SignInForm() {
+	const navigate = useNavigate();
+	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [submitError, setSubmitError] = useState(null);
+	const [showResetNotice, setShowResetNotice] = useState(true);
+	
+	const {
+		register,
+		handleSubmit,
+		formState: { errors },
+	} = useForm();
+	
+	const submitForm = async (formData) => {
+		try {
+			setIsSubmitting(true);
+			setSubmitError(null);
+			
+			const response = await loginUser({
+				email: formData.email,
+				password: formData.password
+			});
+			
+			// Redirect to dashboard after successful login
+			if (response.token) {
+				// Save user data and token
+				localStorage.setItem('user', JSON.stringify(response.user));
+				localStorage.setItem('token', response.token);
+				
+				// Add debugging to verify environment variable
+				console.log("Dashboard URL:", import.meta.env.VITE_ANGULAR_DASHBOARD_URL);
+				
+				// Get dashboard URL with fallback
+				const dashboardUrl = import.meta.env.VITE_ANGULAR_DASHBOARD_URL || 'http://localhost:4200/dashboard';
+				
+				console.log("Redirecting to:", dashboardUrl);
+				
+				// Use timeout to ensure storage is complete before redirect
+				setTimeout(() => {
+					window.location.href = dashboardUrl;
+				}, 100);
+			}
+			
+		} catch (error) {
+			console.error("Login error:", error);
+			
+			// Improved error extraction logic
+			let errorMessage = "We couldn't log you in. Please use the 'Forgot password?' link below to reset your password.";
+			
+			if (error.response?.data) {
+				const errorData = error.response.data;
+				
+				// Handle different error structures from Strapi
+				if (typeof errorData === 'string') {
+					errorMessage = errorData;
+				} else if (errorData.error && typeof errorData.error === 'string') {
+					errorMessage = errorData.error;
+				} else if (errorData.message && typeof errorData.message === 'string') {
+					errorMessage = errorData.message;
+				} else if (errorData.error?.message) {
+					errorMessage = errorData.error.message;
+				} else if (errorData.data?.error?.message) {
+					errorMessage = errorData.data.error.message;
+				}
+			}
+			
+			setSubmitError(errorMessage);
+		} finally {
+			setIsSubmitting(false);
+		}
+	};
+	return (
+		<div className="section aximo-section-padding">
+			<div className="container">
+				<div className="aximo-account-title">
+					<h2>
+						<span className="aximo-title-animation">
+							Welcome back
+							<span className="aximo-title-icon">
+								<img src={StarImg} alt="Star" />
+							</span>
+						</span>
+					</h2>
+				</div>
+				<div className="aximo-account-wrap">
+					{showResetNotice && (
+						<div className="alert alert-info" style={{marginBottom: '20px', position: 'relative', padding: '12px 15px'}}>
+							<button 
+								type="button" 
+								className="close" 
+								onClick={() => setShowResetNotice(false)}
+								style={{position: 'absolute', right: '10px', top: '10px', background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer'}}
+							>×</button>
+							<strong>Account Update Notice:</strong> We've recently upgraded our security system. 
+							Please use the "Forgot password?" link below to reset your password if you're having trouble logging in.
+						</div>
+					)}
+					
+					{submitError && (
+						<div className="alert alert-danger">{submitError}</div>
+					)}
+					
+					<form onSubmit={handleSubmit(submitForm)}>
+						<div className="aximo-account-field">
+							<Field label="Enter email address" error={errors.email}>
+								<input
+									{...register("email", { 
+										required: "Email is required.",
+										pattern: {
+											value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+											message: "Invalid email address"
+										}
+									})}
+									type="email"
+									name="email"
+									id="email"
+									placeholder="example@gmail.com"
+								/>
+							</Field>
+						</div>
+						<div className="aximo-account-field">
+							<Field label="Enter Password" error={errors.password}>
+								<input
+									{...register("password", {
+										required: "Password is required.",
+										minLength: {
+											value: 8,
+											message: "Your password must be at least 8 characters.",
+										},
+									})}
+									type="password"
+									name="password"
+									id="password"
+									placeholder="Enter password"
+								/>
+							</Field>
+						</div>
+						<div className="aximo-account-checkbox-wrap">
+							<div className="aximo-account-checkbox">
+								<input type="checkbox" id="check" {...register("remember")} />
+								<label htmlFor="check">Remember me</label>
+							</div>
+							<Link 
+								className="forgot-password" 
+								to="/reset-password"
+								style={{
+									fontWeight: 'bold',
+									color: '#0066cc',
+									textDecoration: 'underline'
+								}}
+							>
+								Forgot password?
+							</Link>
+						</div>
+						<button id="aximo-account-btn" type="submit" disabled={isSubmitting}>
+							{isSubmitting ? "Logging in..." : "Log in"}
+						</button>
+						<div className="aximo-or">
+							<p>or</p>
+						</div>
+						<a href="https://google.com" target="_blank" className="aximo-connect-login">
+							Sign in with Google
+						</a>
+						<a href="https://fb.com" target="_blank" className="aximo-connect-login">
+							Sign in with Facebook
+						</a>
+						<div className="aximo-account-bottom">
+							<p>
+								Not a member yet? <Link to="/sign-up">Sign up here</Link>
+							</p>
+						</div>
+					</form>
+				</div>
+			</div>
+		</div>
+	);
+}
+export default SignInForm;}, F:\fearlessagency\src\services\authApi.ts:{// Login function
+export const loginUser = async (credentials: LoginData): Promise<LoginResponse> => {
+    try {
+        console.log("Login request sending:", credentials);
+        
+        // Fix: Send credentials in correct format - no 'data' wrapping
+        const response = await api.post<LoginResponse>(
+            '/auth/login', 
+            credentials  // Change from { data: credentials } to just credentials
+        );
+        
+        console.log("Login response received:", response.data);
+        
+        // Check the structure of the response
+        if (!response.data.token) {
+            throw new Error("No token received from server");
+        }
+        
+        // Store token and user data
+        localStorage.setItem('token', response.data.token);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+        
+        return response.data;
+    } catch (error: any) {
+        console.error("API login failed:", error);
+        throw error;
+    }
+};}, F:\fearlessagency\userspacegate\src\app\components\booking-form\booking-form.component.html{<mat-card class="booking-form-container">
+  <mat-card-header>
+    <mat-card-title class="font-syne">Need a service ?</mat-card-title>
+  </mat-card-header>
+  <mat-card-content>
+    <form [formGroup]="bookingForm" (ngSubmit)="onSubmit()">
+      <!-- Service Selection -->
+      <mat-form-field appearance="fill" class="full-width" style="background: #000; border-radius: 4px; color: #fff; --mat-form-field-ripple-color: #ff8c00;">
+        <mat-label>Select Service</mat-label>
+        <mat-select formControlName="service">
+          <mat-option *ngFor="let service of services" [value]="service.value">
+            {{ service.label }}
+          </mat-option>
+        </mat-select>
+        <mat-error *ngIf="bookingForm.get('service')?.touched && bookingForm.get('service')?.invalid">
+          {{ getErrorMessage('service') }}
+        </mat-error>
+      </mat-form-field>
+      <!-- Date Selection -->
+      <mat-form-field appearance="fill" class="full-width" style="background: #000; border-radius: 4px; color: #fff; --mat-form-field-ripple-color: #ff8c00;">
+        <mat-label>Choose a date</mat-label>
+        <input matInput [matDatepicker]="picker" formControlName="date" [min]="currentDate">
+        <mat-datepicker-toggle matIconSuffix [for]="picker">
+          <mat-icon matDatepickerToggleIcon>calendar_today</mat-icon>
+        </mat-datepicker-toggle>
+        <mat-datepicker #picker></mat-datepicker>
+        <mat-error *ngIf="bookingForm.get('date')?.touched && bookingForm.get('date')?.invalid">
+          {{ getErrorMessage('date') }}
+        </mat-error>
+      </mat-form-field>
+      <!-- Time Picker -->
+      <mat-form-field appearance="fill" style="background: #000; border-radius: 4px; color: #fff; --mat-form-field-ripple-color: #ff8c00;">
+        <mat-label>Choose a time</mat-label>
+        <input matInput [matTimepicker]="timepicker" formControlName="time" [min]="'00:00'" [max]="'23:59'" step="60">
+        <mat-timepicker #timepicker></mat-timepicker>
+        
+        <mat-icon matSuffix>schedule</mat-icon>
+        <mat-error *ngIf="bookingForm.get('time')?.touched && bookingForm.get('time')?.invalid">
+          {{ getErrorMessage('time') }}
+        </mat-error>
+      </mat-form-field>
+      <!-- Name Input -->
+      <mat-form-field appearance="fill" class="full-width" style="background: #000; border-radius: 4px; color: #fff; --mat-form-field-ripple-color: #ff8c00;">
+        <mat-label>Name</mat-label>
+        <input matInput formControlName="userName" placeholder="Enter your name">
+        <mat-error *ngIf="bookingForm.get('userName')?.touched && bookingForm.get('userName')?.invalid">
+          {{ getErrorMessage('userName') }}
+        </mat-error>
+      </mat-form-field>
+      <!-- Email Input -->
+      <mat-form-field appearance="fill" class="full-width" style="background: #000; border-radius: 4px; color: #fff; --mat-form-field-ripple-color: #ff8c00;">
+        <mat-label>Email</mat-label>
+        <input matInput type="email" formControlName="userEmail" placeholder="Enter your email">
+        <mat-error *ngIf="bookingForm.get('userEmail')?.touched && bookingForm.get('userEmail')?.invalid">
+          {{ getErrorMessage('userEmail') }}
+        </mat-error>
+      </mat-form-field>
+      <!-- Phone Input -->
+      <mat-form-field appearance="fill" class="full-width" style="background: #000; border-radius: 4px; color: #fff; --mat-form-field-ripple-color: #ff8c00;">
+        <mat-label>Phone</mat-label>
+        <input matInput type="tel" formControlName="userPhone" placeholder="Enter your phone number">
+        <mat-error *ngIf="bookingForm.get('userPhone')?.touched && bookingForm.get('userPhone')?.invalid">
+          {{ getErrorMessage('userPhone') }}
+        </mat-error>
+      </mat-form-field>
+      <!-- Notes Input -->
+      <mat-form-field appearance="fill" class="full-width" style="background: #000; border-radius: 4px; color: #fff; --mat-form-field-ripple-color: #ff8c00;">
+        <mat-label>Notes</mat-label>
+        <textarea matInput formControlName="notes" rows="4" placeholder="Any special requests or notes"></textarea>
+        <mat-error *ngIf="bookingForm.get('notes')?.touched && bookingForm.get('notes')?.invalid">
+          {{ getErrorMessage('notes') }}
+        </mat-error>
+      </mat-form-field>
+      <!-- Submit Button -->
+      <div class="button-group">
+        <button mat-raised-button color="accent" type="submit" [disabled]="bookingForm.invalid || isSubmitting">
+          <mat-icon>calendar_today</mat-icon>
+          {{ isSubmitting ? 'Booking...' : 'Book Now' }}
+        </button>
+        <button mat-stroked-button type="button" (click)="bookingForm.reset()" [disabled]="isSubmitting">
+          <mat-icon>clear</mat-icon>
+          Cancel
+        </button>
+      </div>
+    </form>
+  </mat-card-content>
+</mat-card>
+}, F:\fearlessagency\userspacegate\src\app\components\booking-form\booking-form.component.scss{@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400..800&display=swap');
+.font-syne {
+  font-family: "Syne", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 800; /* Set a default weight */
+  font-style: normal;
+  
+}
+.booking-form-container {
+  max-width: 800px;
+  margin: 2rem auto;
+  padding: 2rem;
+  border-radius: 16px;
+  background: #1e1e1e;
+  color: #ffffff;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+  mat-card-header {
+    margin-bottom: 2rem;
+    mat-card-title {
+      font-size: 2rem;
+      color: #ff8c00;
+      font-weight: 600;
+      text-align: center;
+    }
+  }
+  mat-card-content {
+    form {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1.5rem;
+      .full-width {
+        width: 100%;
+      }
+      textarea {
+        min-height: 120px;
+      }
+      .button-group {
+        grid-column: 1 / -1;
+        display: flex;
+        justify-content: flex-end;
+        gap: 1rem;
+        button {
+          min-width: 120px;
+          color: #ffffff;
+          &:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+          }
+          mat-icon {
+            margin-right: 8px;
+          }
+        }
+      }
+    }
+  }
+}
+},F:\fearlessagency\userspacegate\src\app\components\booking-form\booking-form.components.ts{import { Component, OnInit } from '@angular/core';
+import { RouterModule } from '@angular/router';
+import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
+import { bookingData, BookingService } from '../../services/booking.services';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatCardModule } from '@angular/material/card';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatButtonModule } from '@angular/material/button';
+import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatNativeDateModule } from '@angular/material/core';
+import { CommonModule } from '@angular/common';
+import { MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatSelectModule } from '@angular/material/select';
+import { MatIconModule } from '@angular/material/icon';
+import { MatTimepickerModule } from '@angular/material/timepicker';
+@Component({
+  selector: 'app-booking-form',
+  standalone: true,
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    MatCardModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatButtonModule,
+    MatDatepickerModule,
+    MatNativeDateModule,
+    MatSnackBarModule,
+    MatSelectModule,
+    MatIconModule,
+    MatTimepickerModule,
+    RouterModule  // Add RouterModule here
+    
+  ],
+  templateUrl: './booking-form.component.html',
+  styleUrls: ['./booking-form.component.scss']
+})
+export class BookingFormComponent implements OnInit {
+  bookingForm: FormGroup;
+  isSubmitting = false;
+  currentDate = new Date();
+  currentUser = 'fmjmadeit';
+  services = [
+    { value: 'haircut', label: 'Haircut' },
+    { value: 'coloring', label: 'Hair Coloring' },
+    { value: 'styling', label: 'Hair Styling' },
+    { value: 'treatment', label: 'Hair Treatment' }
+  ];
+  constructor(
+    private fb: FormBuilder,
+    private bookingService: BookingService,
+    private snackBar: MatSnackBar
+  ) {
+    this.bookingForm = this.fb.group({
+      service: ['', Validators.required],
+      date: ['', Validators.required],
+      time: ['', [Validators.required, Validators.pattern('^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$')]],
+      userName: ['', Validators.required],
+      userEmail: ['', [Validators.required, Validators.email]],
+      userPhone: ['', [Validators.required, Validators.pattern('^[0-9]{10}$')]],
+      notes: ['', Validators.required]
+    });
+  }
+  ngOnInit(): void {}
+  getErrorMessage(fieldName: string): string {
+    const control = this.bookingForm.get(fieldName);
+    if (control?.hasError('required')) {
+      return `${fieldName} is required`;
+    } else if (control?.hasError('email')) {
+      return `Invalid email address`;
+    } else if (control?.hasError('pattern')) {
+      if (fieldName.toLowerCase() === 'time') {
+        return `Invalid time format (HH:mm)`;
+      }
+      return `Invalid phone number format`;
+    }
+    return '';
+  }
+  private formatDate(date: Date): string {
+    if (!(date instanceof Date) || isNaN(date.getTime())) {
+      throw new Error('Invalid date provided');
+    }
+    
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    
+    return `${year}-${month}-${day}`;
+  }
+  private formatTimeWithMilliseconds(time: string): string {
+    if (!time) {
+      throw new Error('Time is required');
+    }
+    // Validate the time format using a regular expression
+    const timeRegex = /^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$/;
+    if (!timeRegex.test(time)) {
+      throw new Error('Invalid time format, expected HH:mm');
+    }
+    return `${time}:00.000`;
+  }
+  onSubmit(): void {
+    if (this.bookingForm.valid && !this.isSubmitting) {
+      this.isSubmitting = true;
+  
+      try {
+        const formValues = this.bookingForm.value;
+  
+        // Ensure the date is a valid Date object
+        let dateValue = formValues.date;
+        if (typeof dateValue === 'string') {
+          dateValue = new Date(dateValue);
+        }
+        if (!(dateValue instanceof Date) || isNaN(dateValue.getTime())) {
+          throw new Error('Invalid date provided');
+        }
+  
+        // Structure the data according to Strapi's expectations (no wrapping 'data' object)
+        const bookingData: bookingData = {
+          service: formValues.service,
+          date: this.formatDate(dateValue),
+          time: this.formatTimeWithMilliseconds(formValues.time),
+          notes: formValues.notes,
+          statuses: 'pending',
+          "user": {
+            name: formValues.userName,
+            email: formValues.userEmail,
+            phone: formValues.userPhone
+          }
+        };
+  
+        console.log('Sending booking data:', bookingData);
+  
+        this.bookingService.createBooking(bookingData).subscribe({
+          next: (response) => {
+            console.log('Booking success:', response);
+            this.isSubmitting = false;
+            this.snackBar.open('Booking created successfully!', 'Close', {
+              duration: 3000,
+              panelClass: ['success-snackbar']
+            });
+            this.bookingForm.reset();
+          },
+          error: (error) => {
+            console.error('Booking error details:', error);
+            this.isSubmitting = false;
+  
+            let errorMessage = 'Error creating booking!';
+            if (error.error?.error?.details?.errors) {
+              errorMessage = error.error.error.details.errors
+                .map((e: any) => e.message)
+                .join(', ');
+            } else if (error.error?.error?.message) {
+              errorMessage = error.error.error.message;
+            }
+  
+            this.snackBar.open(errorMessage, 'Close', {
+              duration: 5000,
+              panelClass: ['error-snackbar']
+            });
+          }
+        });
+      } catch (error) {
+        this.isSubmitting = false;
+        this.snackBar.open(error instanceof Error ? error.message : 'Error processing form data', 'Close', {
+          duration: 5000,
+          panelClass: ['error-snackbar']
+        });
+      }
+    } else {
+      Object.keys(this.bookingForm.controls).forEach(key => {
+        const control = this.bookingForm.get(key);
+        control?.markAsTouched();
+      });
+    }
+  }
+}},F:\fearlessagency\userspacegate\src\app\components\dashboard\dashboard.component.html{<div class="dashboard-container" [@fadeInUp]>
+    <!-- Header Section with Time and User -->
+    <div class="dashboard-header">
+      <div class="welcome-section">
+        <h1>Welcome back, {{currentUser}}</h1>
+        <p class="current-time">{{currentTime | date:'yyyy-MM-dd HH:mm:ss'}} UTC</p>
+      </div>
+      <!-- Add near the top of your dashboard template -->
+<div class="p-d-flex p-jc-end p-mb-3">
+  <button pButton label="Refresh Data" icon="pi pi-refresh" 
+          class="p-button-outlined" (click)="manualRefresh()"
+          [disabled]="loading"></button>
+</div>
+      <div class="period-selector">
+        <p-selectButton 
+          [options]="periodOptions" 
+          [(ngModel)]="selectedPeriod"
+          (onChange)="onPeriodChange($event)"
+        ></p-selectButton>
+      </div>
+    </div>
+  
+    <!-- Statistics Cards -->
+    <div class="grid">
+      <div class="col-12 md:col-6 lg:col-3" *ngFor="let stat of [
+        { icon: 'calendar', label: 'Total Bookings', value: statistics.totalBookings, growth: statistics.bookingGrowth },
+        { icon: 'clock', label: 'Pending', value: statistics.pendingBookings },
+        { icon: 'check-circle', label: 'Completed', value: statistics.completedBookings },
+        { icon: 'dollar', label: 'Revenue', value: statistics.revenue, prefix: '$', growth: statistics.revenueGrowth }
+      ]">
+        <p-card styleClass="stats-card">
+          <div class="stats-content">
+            <div class="stats-icon">
+              <i class="pi pi-{{stat.icon}}"></i>
+            </div>
+            <div class="stats-info">
+              <h3>{{stat.label}}</h3>
+              <h2>{{stat.prefix || ''}}{{stat.value | number}}</h2>
+              <div class="growth-indicator" *ngIf="stat.growth !== undefined">
+                <i class="pi" [ngClass]="stat.growth >= 0 ? 'pi-arrow-up' : 'pi-arrow-down'"></i>
+                <span [ngClass]="stat.growth >= 0 ? 'positive' : 'negative'">
+                  {{Math.abs(stat.growth)}}%
+                </span>
+              </div>
+            </div>
+          </div>
+        </p-card>
+      </div>
+    </div>
+  
+    <!-- Chart and Recent Bookings -->
+    <div class="grid mt-4">
+      <div class="col-12 lg:col-8">
+        <p-card header="Booking Analytics">
+          <p-chart type="line" [data]="chartData" [options]="chartOptions" height="400"></p-chart>
+        </p-card>
+      </div>
+      <div class="col-12 lg:col-4">
+        <p-card header="Recent Bookings">
+          <p-table [value]="recentBookings" [scrollable]="true" scrollHeight="400px">
+            <ng-template pTemplate="header">
+              <tr>
+                <th>Client</th>
+                <th>Date</th>
+                <th>Status</th>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-booking>
+              <tr>
+                <td>{{booking.client}}</td>
+                <td>{{booking.date | date:'short'}}</td>
+                <td>
+                  <span [class]="'status-badge status-' + booking.status.toLowerCase()">
+                    {{booking.status}}
+                  </span>
+                </td>
+              </tr>
+            </ng-template>
+          </p-table>
+        </p-card>
+      </div>
+    </div>
+  </div>
+  
+  <p-toast></p-toast>}, F:\fearlessagency\userspacegate\src\app\components\dashboard\dashboard.component.scss{.dashboard-container {
+    padding: 1.5rem;
+    background-color: #181818;
+    min-height: calc(100vh - 64px);
+  }
+  
+  .dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+  
+    .welcome-section {
+      h1 {
+        color: #ffffff;
+        margin: 0;
+        font-size: 1.8rem;
+        font-weight: 600;
+      }
+  
+      .current-time {
+        color: #ff9800;
+        margin: 0.5rem 0 0;
+        font-family: 'Roboto Mono', monospace;
+        font-size: 1rem;
+        background: rgba(255, 152, 0, 0.1);
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        display: inline-block;
+      }
+    }
+  }
+  
+  .stats-card {
+    background: #222222 !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    
+    ::ng-deep .p-card-body {
+      padding: 1rem;
+    }
+  }
+  
+  .stats-content {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  
+    .stats-icon {
+      background: rgba(255, 152, 0, 0.1);
+      padding: 1rem;
+      border-radius: 8px;
+      
+      i {
+        font-size: 1.5rem;
+        color: #ff9800;
+      }
+    }
+  
+    .stats-info {
+      h3 {
+        color: #999;
+        margin: 0;
+        font-size: 0.9rem;
+      }
+  
+      h2 {
+        color: #fff;
+        margin: 0.5rem 0;
+        font-size: 1.5rem;
+      }
+    }
+  }
+  
+  .growth-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+  
+    .positive {
+      color: #66BB6A;
+    }
+  
+    .negative {
+      color: #EF5350;
+    }
+  }
+  
+  ::ng-deep {
+    .p-card {
+      background: #222222 !important;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+  
+      .p-card-header {
+        padding: 1rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        color: #fff;
+      }
+    }
+  
+    .p-selectbutton {
+      .p-button {
+        background: #333333;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: #fff;
+  
+        &.p-highlight {
+          background: #ff9800;
+          border-color: #ff9800;
+        }
+      }
+    }
+  
+    .p-table {
+      background: transparent !important;
+  
+      th {
+        background: #333333 !important;
+        color: #fff !important;
+        border-color: rgba(255, 255, 255, 0.1) !important;
+      }
+  
+      td {
+        background: transparent !important;
+        color: #fff !important;
+        border-color: rgba(255, 255, 255, 0.1) !important;
+      }
+    }
+  }
+  
+  .status-badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+  
+    &.status-pending {
+      background: rgba(255, 152, 0, 0.1);
+      color: #ff9800;
+    }
+  
+    &.status-completed {
+      background: rgba(102, 187, 106, 0.1);
+      color: #66BB6A;
+    }
+  }
+  
+  @media screen and (max-width: 768px) {
+    .dashboard-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+  }}, F:\fearlessagency\userspacegate\src\app\components\dashboard\dashboard.component.ts{import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID } from '@angular/core';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { RouterModule } from '@angular/router';
+import { ChartModule } from 'primeng/chart';
+import { CardModule } from 'primeng/card';
+import { ButtonModule } from 'primeng/button';
+import { TableModule } from 'primeng/table';
+import { ProgressBarModule } from 'primeng/progressbar';
+import { CalendarModule } from 'primeng/calendar';
+import { DropdownModule } from 'primeng/dropdown';
+import { ToastModule } from 'primeng/toast';
+import { SelectButtonModule } from 'primeng/selectbutton';
+import { DashboardService } from '../../services/dashboard.services';
+import { MessageService } from 'primeng/api';
+import { animate, style, transition, trigger } from '@angular/animations';
+import { FormsModule } from '@angular/forms';
+@Component({
+  selector: 'app-dashboard',
+  standalone: true,
+  imports: [
+    CommonModule,
+    RouterModule,
+    ChartModule,
+    CardModule,
+    ButtonModule,
+    TableModule,
+    ProgressBarModule,
+    CalendarModule,
+    DropdownModule,
+    ToastModule,
+    SelectButtonModule,
+    FormsModule
+  ],
+  providers: [MessageService],
+  animations: [
+    trigger('fadeInUp', [
+      transition(':enter', [
+        style({ opacity: 0, transform: 'translateY(20px)' }),
+        animate('0.3s ease-out', style({ opacity: 1, transform: 'translateY(0)' }))
+      ])
+    ])
+  ],
+  templateUrl: './dashboard.component.html',
+  styleUrls: ['./dashboard.component.scss']
+})
+export class DashboardComponent implements OnInit, OnDestroy {
+  chartData: any;
+  chartOptions: any;
+  recentBookings: any[] = [];
+  statistics = {
+    totalBookings: 0,
+    pendingBookings: 0,
+    completedBookings: 0,
+    revenue: 0,
+    revenueGrowth: 0,
+    bookingGrowth: 0
+  };
+  
+  notifications: any[] = [];
+  loading = false;
+  periodOptions = [
+    { label: 'Week', value: 'week' },
+    { label: 'Month', value: 'month' },
+    { label: 'Year', value: 'year' }
+  ];
+  selectedPeriod = 'month';
+  
+  // Updated with the current date/time
+  currentTime: Date = new Date('2025-05-21 17:44:12');
+  // Updated with current username
+  currentUser: string = 'fmjmadeit';
+  protected Math = Math;
+  
+  // Flag to track component initialization
+  private static clientSideInitialized = false;
+  
+  // Store intervals for cleanup
+  private timeUpdateInterval: any;
+  private dataRefreshInterval: any;
+  constructor(
+    private dashboardService: DashboardService,
+    private messageService: MessageService,
+    @Inject(PLATFORM_ID) private platformId: Object
+  ) {}
+  // Safe method to check if we're in a browser
+  private isBrowser(): boolean {
+    return isPlatformBrowser(this.platformId);
+  }
+  ngOnInit() {
+    console.log('Dashboard component initialized');
+    
+    // CRITICAL FIX: Prevent multiple initializations
+    if (this.isBrowser() && DashboardComponent.clientSideInitialized) {
+      console.warn('⚠️ Dashboard already initialized! Preventing duplicate initialization.');
+      return;
+    }
+    
+    // Mark as initialized - but only in browser
+    if (this.isBrowser()) {
+      DashboardComponent.clientSideInitialized = true;
+    }
+    
+    // Always initialize chart options (safe for SSR)
+    this.initChartOptions();
+    
+    // Handle different environments
+    if (this.isBrowser()) {
+      // Browser-specific initialization
+      console.log('Loading dashboard data');
+      this.loadDashboardData();
+      this.startClockUpdate();
+    } else {
+      // No need to load data on server
+      console.log('Server-side detected, skipping data loading');
+    }
+  }
+  ngOnDestroy() {
+    // Clean up all intervals when component is destroyed - safely
+    if (this.isBrowser()) {
+      if (this.timeUpdateInterval) {
+        clearInterval(this.timeUpdateInterval);
+      }
+      if (this.dataRefreshInterval) {
+        clearInterval(this.dataRefreshInterval);
+      }
+    }
+  }
+  private initChartOptions() {
+    this.chartOptions = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          labels: {
+            color: '#ffffff'
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: {
+            color: '#ffffff'
+          },
+          grid: {
+            color: 'rgba(255,255,255,0.1)'
+          }
+        },
+        y: {
+          ticks: {
+            color: '#ffffff'
+          },
+          grid: {
+            color: 'rgba(255,255,255,0.1)'
+          }
+        }
+      }
+    };
+  }
+  private loadDashboardData() {
+    console.log('Loading dashboard data once');
+    this.loading = true;
+    
+    // Safety timeout to prevent endless loading
+    const safetyTimeout = setTimeout(() => {
+      if (this.loading) {
+        console.warn('Dashboard loading timed out, showing emergency data');
+        this.loading = false;
+        this.showMockData();
+      }
+    }, 5000);
+    
+    let completedRequests = 0;
+    const totalRequests = 4;
+    
+    const checkCompletion = () => {
+      completedRequests++;
+      console.log(`Completed ${completedRequests}/${totalRequests} dashboard requests`);
+      if (completedRequests >= totalRequests) {
+        clearTimeout(safetyTimeout);
+        this.loading = false;
+      }
+    };
+    
+    // Load dashboard stats
+    this.dashboardService.getDashboardStats().subscribe({
+      next: stats => {
+        this.statistics = stats || this.statistics;
+        checkCompletion();
+      },
+      error: error => {
+        console.error('Failed to load dashboard stats:', error);
+        checkCompletion();
+      }
+    });
+    
+    // Load chart data
+    this.dashboardService.getChartData(this.selectedPeriod).subscribe({
+      next: data => {
+        if (data) {
+          this.chartData = {
+            labels: data.labels,
+            datasets: [
+              {
+                label: 'Bookings',
+                data: data.bookings,
+                fill: false,
+                borderColor: '#42A5F5',
+                tension: 0.4
+              },
+              {
+                label: 'Revenue',
+                data: data.revenue,
+                fill: false,
+                borderColor: '#66BB6A',
+                tension: 0.4
+              }
+            ]
+          };
+        }
+        checkCompletion();
+      },
+      error: error => {
+        console.error('Failed to load chart data:', error);
+        checkCompletion();
+      }
+    });
+    
+    // Load recent bookings
+    this.dashboardService.getRecentBookings().subscribe({
+      next: bookings => {
+        this.recentBookings = bookings || [];
+        checkCompletion();
+      },
+      error: error => {
+        console.error('Failed to load recent bookings:', error);
+        this.recentBookings = [];
+        checkCompletion();
+      }
+    });
+    
+    // Load notifications
+    this.dashboardService.getUserNotifications().subscribe({
+      next: notifications => {
+        this.notifications = notifications || [];
+        checkCompletion();
+      },
+      error: error => {
+        console.error('Failed to load notifications:', error);
+        this.notifications = [];
+        checkCompletion();
+      }
+    });
+  }
+  // Fallback to show mock data if loading fails
+  private showMockData() {
+    console.log('Showing emergency mock data');
+    
+    // Basic chart data
+    this.chartData = {
+      labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+      datasets: [
+        {
+          label: 'Bookings',
+          data: [10, 15, 8, 12],
+          fill: false,
+          borderColor: '#42A5F5',
+          tension: 0.4
+        },
+        {
+          label: 'Revenue',
+          data: [500, 750, 400, 600],
+          fill: false,
+          borderColor: '#66BB6A',
+          tension: 0.4
+        }
+      ]
+    };
+    
+    // Basic statistics
+    this.statistics = {
+      totalBookings: 45,
+      pendingBookings: 5,
+      completedBookings: 40,
+      revenue: 2250,
+      revenueGrowth: 5.2,
+      bookingGrowth: 3.8
+    };
+    
+    // Sample bookings
+    this.recentBookings = [
+      {
+        id: 1,
+        customerName: 'Jane Doe',
+        service: 'Website Redesign',
+        date: '2025-05-20T14:00:00',
+        status: 'Completed',
+        amount: 450
+      },
+      {
+        id: 2,
+        customerName: 'John Smith',
+        service: 'SEO Consultation',
+        date: '2025-05-21T10:30:00',
+        status: 'Pending',
+        amount: 200
+      }
+    ];
+    
+    // Sample notifications
+    this.notifications = [
+      {
+        id: 1,
+        type: 'booking',
+        message: 'New booking received',
+        date: '2025-05-21T09:15:00',
+        read: false
+      }
+    ];
+  }
+  // Only update the clock in browser environment
+  private startClockUpdate() {
+    // Safety check for browser APIs
+    if (!this.isBrowser()) {
+      console.log('Browser APIs not available, skipping clock update');
+      return;
+    }
+    
+    this.timeUpdateInterval = setInterval(() => {
+      this.currentTime = new Date(this.currentTime.getTime() + 1000);
+    }, 1000);
+  }
+  onPeriodChange(event: any) {
+    if (!this.isBrowser()) return;
+    
+    // Just update chart data for the selected period
+    this.dashboardService.getChartData(event.value).subscribe({
+      next: data => {
+        if (data) {
+          this.chartData = {
+            labels: data.labels,
+            datasets: [
+              {
+                label: 'Bookings',
+                data: data.bookings,
+                fill: false,
+                borderColor: '#42A5F5',
+                tension: 0.4
+              },
+              {
+                label: 'Revenue',
+                data: data.revenue,
+                fill: false,
+                borderColor: '#66BB6A',
+                tension: 0.4
+              }
+            ]
+          };
+        }
+      },
+      error: error => {
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: 'Failed to load chart data'
+        });
+      }
+    });
+  }
+  // Manual refresh button for user
+  manualRefresh() {
+    if (!this.isBrowser() || this.loading) return;
+    
+    console.log('Manual refresh requested');
+    this.loadDashboardData();
+  }
+}
+},F:\fearlessagency\userspacegate\src\app\components\footer\footer.component.html{<footer class="app-footer">
+    <div class="footer-bottom">
+      <p>&copy; {{currentYear}} BookingApp. All rights reserved.</p>
+      <p>Powered by <a href="https://fearlessint.com">An Ultimatex Subsidiary</a></p>
+    </div>
+  </footer>},F:\fearlessagency\userspacegate\src\app\components\footer\footer.component.scss{.app-footer {
+  background-color: #000000; /* Black background */
+  color: #ffffff; /* White text */
+  padding: 0.2rem 1rem;
+  border: none;
+}
+.footer-bottom p {
+  margin: 0.5rem 0;
+}
+.footer-bottom a {
+  color: #ff9800; /* Orange link color */
+  text-decoration: none;
+  font-weight: 500;
+}
+.footer-bottom a:hover {
+  text-decoration: underline;
+}
+.footer-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+.footer-section {
+  margin: 1rem 0;
+}
+.footer-section h3 {
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #ff9800; /* Orange color for section headings */
+}
+.footer-section p {
+  margin-bottom: 0.5rem;
+  color: #bbb; /* Lighter gray text for paragraphs */
+}
+.footer-section .mat-button {
+  display: block;
+  text-align: left;
+  color: white;
+}
+.social-links {
+  display: flex;
+  gap: 1rem;
+}
+.social-links .mat-icon-button {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-radius: 50%;
+  padding: 10px;
+}
+.social-links .mat-icon-button:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+},F:\fearlessagency\userspacegate\src\app\components\footer\footer.component.ts{import { Component } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { ButtonModule } from 'primeng/button';
+@Component({
+  selector: 'app-footer',
+  templateUrl: './footer.component.html',
+  styleUrls: ['./footer.component.scss'],
+  standalone: true,
+  imports: [
+    MatButtonModule,
+    MatIconModule,
+    ButtonModule
+  ]
+})
+export class FooterComponent {
+  currentYear = new Date().getFullYear();
+}},F:\fearlessagency\userspacegate\src\app\components\header\header.component.html{<p-menu [model]="items" class="flex justify-center" styleClass="w-full md:w-60">
+    <ng-template #start>
+        <span class="inline-flex items-center gap-1 px-2 py-2">
+            <svg width="33" height="35" viewBox="0 0 33 35" fill="none" xmlns="http://www.w3.org/2000/svg" class="block mx-auto">
+                <path d="..." fill="var(--primary-color)" />
+            </svg>
+            <span class="text-xl font-semibold">
+                PRIME<span class="text-primary">APP</span>
+            </span>
+        </span>
+    </ng-template>
+    <ng-template #submenuheader let-item>
+        <span class="text-primary font-bold">{{ item.label }}</span>
+    </ng-template>
+    <ng-template #item let-item>
+        <a pRipple class="flex items-center p-menu-item-link">
+            <span [class]="item.icon"></span>
+            <span class="ml-2">{{ item.label }}</span>
+            <p-badge *ngIf="item.badge" class="ml-auto" [value]="item.badge"></p-badge>
+            <span *ngIf="item.shortcut" class="ml-auto border border-surface rounded bg-emphasis text-muted-color text-xs p-1">
+                {{ item.shortcut }}
+            </span>
+        </a>
+    </ng-template>
+    <ng-template #end>
+        <button pRipple class="relative overflow-hidden w-full border-0 bg-transparent flex items-start p-2 pl-4 hover:bg-surface-100 dark:hover:bg-surface-800 rounded-none cursor-pointer transition-colors duration-200">
+            <p-avatar image="https://primefaces.org/cdn/primeng/images/demo/avatar/amyelsner.png" class="mr-2" shape="circle"></p-avatar>
+            <span class="inline-flex flex-col">
+                <span class="font-bold">Amy Elsner</span>
+                <span class="text-sm">Admin</span>
+            </span>
+        </button>
+    </ng-template>
+</p-menu>
+},F:\fearlessagency\userspacegate\src\app\components\header\header.component.scss{import { Component } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MenuItem } from 'primeng/api'; // Import MenuItem type
+import { MenuModule } from 'primeng/menu'; // 
+import { BadgeModule } from 'primeng/badge';
+import { AvatarModule } from 'primeng/avatar';
+@Component({
+  selector: 'app-header',
+  templateUrl: './header.component.html',
+  styleUrls: ['./header.component.scss'],
+  standalone: true,
+  imports: [
+    CommonModule,
+    RouterModule,
+    MatButtonModule,
+    MatIconModule,
+    MenuModule,
+    BadgeModule,
+    AvatarModule,
+  ]
+})
+export class HeaderComponent {
+  items: MenuItem[] = [
+    { label: 'Home', icon: 'pi pi-home', routerLink: '/' },
+    { label: 'About', icon: 'pi pi-info', routerLink: '/about' },
+    {
+      label: 'Services',
+      icon: 'pi pi-cog',
+      items: [
+        { label: 'Web Development', icon: 'pi pi-code' },
+        { label: 'UI/UX Design', icon: 'pi pi-palette' },
+      ],
+    },
+    { label: 'Contact', icon: 'pi pi-envelope', routerLink: '/contact' },
+  ];
+}
+},F:\fearlessagency\userspacegate\src\app\components\messages\messages.component.ts{import { Component, OnInit } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { MessagesService } from '../../services/messages.service';
+import { TableModule } from 'primeng/table';
+import { ButtonModule } from 'primeng/button';
+import { CardModule } from 'primeng/card';
+import { TagModule } from 'primeng/tag';
+@Component({
+  selector: 'app-messages',
+  standalone: true,
+  imports: [CommonModule, TableModule, ButtonModule, CardModule, TagModule],
+  template: `
+    <div class="messages-container">
+      <h1>Your Messages</h1>
+      
+      <p-card>
+        <p-table [value]="messages" [tableStyle]="{'min-width': '50rem'}">
+          <ng-template pTemplate="header">
+            <tr>
+              <th>Status</th>
+              <th>Sender</th>
+              <th>Subject</th>
+              <th>Date</th>
+              <th>Actions</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-message>
+            <tr [ngClass]="{'unread-row': !message.read}">
+              <td>
+                <p-tag *ngIf="!message.read" severity="info" value="New"></p-tag>
+              </td>
+              <td>{{message.sender}}</td>
+              <td>{{message.subject}}</td>
+              <td>{{message.date | date:'short'}}</td>
+              <td>
+                <button pButton type="button" icon="pi pi-eye" class="p-button-rounded p-button-text"></button>
+                <button pButton type="button" icon="pi pi-trash" class="p-button-rounded p-button-text p-button-danger"></button>
+              </td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage">
+            <tr>
+              <td colspan="5" class="text-center">No messages found</td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </p-card>
+    </div>
+  `,
+  styles: [`
+    .messages-container {
+      padding: 1.5rem;
+    }
+    
+    h1 {
+      color: #fff;
+      margin-bottom: 1.5rem;
+    }
+    
+    .unread-row {
+      background-color: rgba(0, 123, 255, 0.05);
+      font-weight: bold;
+    }
+    
+    ::ng-deep .p-card {
+      background-color: #222;
+      color: #fff;
+    }
+    
+    ::ng-deep .p-datatable {
+      .p-datatable-header,
+      .p-datatable-thead > tr > th {
+        background-color: #333;
+        color: white;
+        border-color: #444;
+      }
+      
+      .p-datatable-tbody > tr {
+        background-color: #222;
+        color: white;
+        
+        &:hover {
+          background-color: #2a2a2a !important;
+        }
+        
+        > td {
+          border-color: #444;
+        }
+      }
+    }
+  `]
+})
+export class MessagesComponent implements OnInit {
+  messages: any[] = [];
+  constructor(private messagesService: MessagesService) {}
+  ngOnInit() {
+    this.messagesService.getMessages().subscribe(data => {
+      this.messages = data;
+    });
+  }
+}},F:\fearlessagency\userspacegate\src\app\components\profile\profile.component.ts{import { Component, OnInit } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { CardModule } from 'primeng/card';
+import { ButtonModule } from 'primeng/button';
+import { InputTextModule } from 'primeng/inputtext';
+import { PasswordModule } from 'primeng/password';
+import { DividerModule } from 'primeng/divider';
+import { InputMaskModule } from 'primeng/inputmask';
+import { AuthService } from '../../services/auth.services';
+import { ToastModule } from 'primeng/toast';
+import { MessageService } from 'primeng/api';
+@Component({
+  selector: 'app-profile',
+  standalone: true,
+  imports: [
+    CommonModule,
+    FormsModule,
+    ReactiveFormsModule,
+    CardModule,
+    ButtonModule,
+    InputTextModule,
+    PasswordModule,
+    DividerModule,
+    InputMaskModule,
+    ToastModule
+  ],
+  providers: [MessageService],
+  template: `
+    <div class="profile-container">
+      <h1>My Profile</h1>
+      
+      <div class="grid">
+        <div class="col-12 md:col-6">
+          <p-card header="Personal Information">
+            <form [formGroup]="profileForm" (ngSubmit)="onSubmit()">
+              <div class="field">
+                <label for="fullName">Full Name</label>
+                <input id="fullName" type="text" pInputText formControlName="fullName" class="w-full">
+                <small *ngIf="profileForm.get('fullName')?.invalid && profileForm.get('fullName')?.touched" class="p-error">
+                  Full name is required
+                </small>
+              </div>
+              
+              <div class="field">
+                <label for="email">Email</label>
+                <input id="email" type="text" pInputText formControlName="email" class="w-full">
+                <small *ngIf="profileForm.get('email')?.invalid && profileForm.get('email')?.touched" class="p-error">
+                  Valid email is required
+                </small>
+              </div>
+              
+              <div class="field">
+                <label for="phone">Phone Number</label>
+                <p-inputMask id="phone" mask="(999) 999-9999" formControlName="phone" placeholder="(999) 999-9999" class="w-full"></p-inputMask>
+              </div>
+              
+              <p-divider></p-divider>
+              
+              <div class="field">
+                <label for="currentPassword">Current Password</label>
+                <p-password id="currentPassword" formControlName="currentPassword" [toggleMask]="true" [feedback]="false" class="w-full"></p-password>
+              </div>
+              
+              <div class="field">
+                <label for="newPassword">New Password</label>
+                <p-password id="newPassword" formControlName="newPassword" [toggleMask]="true" class="w-full"></p-password>
+              </div>
+              
+              <div class="field">
+                <label for="confirmPassword">Confirm Password</label>
+                <p-password id="confirmPassword" formControlName="confirmPassword" [toggleMask]="true" [feedback]="false" class="w-full"></p-password>
+                <small *ngIf="passwordMismatch && profileForm.get('confirmPassword')?.touched" class="p-error">
+                  Passwords do not match
+                </small>
+              </div>
+              
+              <div class="flex justify-content-end">
+                <button pButton type="submit" label="Save Changes" [disabled]="profileForm.invalid || isSubmitting"></button>
+              </div>
+            </form>
+          </p-card>
+        </div>
+        
+        <div class="col-12 md:col-6">
+          <p-card header="Account Information">
+            <div class="account-info">
+              <p><strong>Member Since:</strong> {{ creationDate | date }}</p>
+              <p><strong>Account Status:</strong> <span class="active-tag">Active</span></p>
+              <p><strong>Last Login:</strong> {{ lastLoginDate | date:'medium' }}</p>
+            </div>
+            
+            <p-divider></p-divider>
+            
+            <div class="account-actions">
+              <button pButton type="button" label="Request Data Export" class="p-button-outlined mb-2 w-full"></button>
+              <button pButton type="button" label="Delete My Account" class="p-button-danger p-button-outlined w-full"></button>
+            </div>
+          </p-card>
+        </div>
+      </div>
+    </div>
+    
+    <p-toast></p-toast>
+  `,
+  styles: [`
+    .profile-container {
+      padding: 1.5rem;
+      
+      h1 {
+        color: white;
+        margin-bottom: 1.5rem;
+      }
+    }
+    
+    .field {
+      margin-bottom: 1.5rem;
+      
+      label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+        color: #ccc;
+      }
+    }
+    
+    .active-tag {
+      background-color: #4caf50;
+      color: white;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 0.8rem;
+    }
+    
+    ::ng-deep .p-card {
+      background-color: #222;
+      color: white;
+      
+      .p-card-header {
+        border-bottom: 1px solid #444;
+        padding-bottom: 1rem;
+        font-weight: 600;
+      }
+      
+      .p-card-content {
+        padding-top: 1.5rem;
+      }
+    }
+    
+    .account-info {
+      p {
+        margin-bottom: 1rem;
+      }
+    }
+    
+    ::ng-deep .p-password .p-password-input,
+    ::ng-deep .p-inputtext {
+      background-color: #333;
+      border-color: #444;
+      color: white;
+    }
+    
+    ::ng-deep .p-divider {
+      border-color: #444;
+    }
+  `]
+})
+export class ProfileComponent implements OnInit {
+  profileForm: FormGroup;
+  isSubmitting = false;
+  passwordMismatch = false;
+  creationDate = new Date('2025-01-15');
+  lastLoginDate = new Date();
+  
+  constructor(
+    private fb: FormBuilder,
+    private authService: AuthService,
+    private messageService: MessageService
+  ) {
+    this.profileForm = this.fb.group({
+      fullName: ['', Validators.required],
+      email: ['', [Validators.required, Validators.email]],
+      phone: [''],
+      currentPassword: [''],
+      newPassword: [''],
+      confirmPassword: ['']
+    });
+  }
+  
+  ngOnInit() {
+    const user = this.authService.getCurrentUser();
+    if (user) {
+      this.profileForm.patchValue({
+        fullName: user.fullName,
+        email: user.email
+      });
+    }
+    
+    // Password matching validation
+    this.profileForm.get('confirmPassword')?.valueChanges.subscribe(val => {
+      const newPassword = this.profileForm.get('newPassword')?.value;
+      this.passwordMismatch = newPassword !== val;
+    });
+  }
+  
+  onSubmit() {
+    if (this.profileForm.invalid) return;
+    
+    const newPassword = this.profileForm.get('newPassword')?.value;
+    const confirmPassword = this.profileForm.get('confirmPassword')?.value;
+    
+    if (newPassword && newPassword !== confirmPassword) {
+      this.passwordMismatch = true;
+      return;
+    }
+    
+    this.isSubmitting = true;
+    
+    // Mock API call - replace with actual service call
+    setTimeout(() => {
+      this.isSubmitting = false;
+      this.messageService.add({
+        severity: 'success',
+        summary: 'Success',
+        detail: 'Profile updated successfully'
+      });
+      
+      // Reset password fields
+      this.profileForm.patchValue({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      });
+    }, 1500);
+  }
+}},F:\fearlessagency\userspacegate\src\app\components\sidebar\sidebar-menu.service.ts{// sidebar-menu.service.ts
+import { Injectable } from '@angular/core';
+import { MenuItem } from 'primeng/api';
+@Injectable({
+  providedIn: 'root'
+})
+export class SidebarMenuService {
+  transformMenuItems(items: any[]): MenuItem[] {
+    return items.map(item => {
+      return {
+        label: item.label,
+        icon: item.icon,
+        routerLink: item.route,
+        styleClass: this.isRouteActive(item.route) ? 'active' : ''
+      };
+    });
+  }
+  private isRouteActive(route: string): boolean {
+    // Simple implementation - in a real app, use Router or ActivatedRoute
+    return window.location.pathname === route;
+  }
+}},F:\fearlessagency\userspacegate\src\app\components\sidebar\sidebar.component.html{<div class="p-sidebar">
+  <div class="p-sidebar-logo">
+    <h1 class="font-syne">Fearless.</h1>
+  </div>
+  <div class="user-profile">
+    <div class="avatar">
+      <span>{{ getUserInitials() }}</span>
+    </div>
+    <div class="user-info">
+      <h3>{{ user?.fullName }}</h3>
+      <p>{{ user?.email }}</p>
+    </div>
+  </div>
+  <div class="p-sidebar-section">
+    <h3 class="font-syne">Navigation</h3>
+    <ul>
+      <li [routerLink]="['/dashboard']" routerLinkActive="active">
+        <i class="pi pi-home"></i>
+        <span>Dashboard</span>
+      </li>
+    </ul>
+  </div>
+  <div class="p-sidebar-section">
+    <h3 class="font-syne">Documents</h3>
+    <ul>
+      <li [routerLink]="['/booking']" routerLinkActive="active">
+        <i class="pi pi-calendar"></i>
+        <span>Book Service</span>
+      </li>
+      <li [routerLink]="['/messages']" routerLinkActive="active">
+        <i class="pi pi-envelope"></i>
+        <span>Messages</span>
+        <p-badge *ngIf="unreadMessages > 0" [value]="unreadMessages.toString()"></p-badge>
+      </li>
+    </ul>
+  </div>
+  <div class="p-sidebar-section">
+    <h3 class="font-syne">Profile</h3>
+    <ul>
+      <li [routerLink]="['/profile']" routerLinkActive="active">
+        <i class="pi pi-user"></i>
+        <span>My Profile</span>
+      </li>
+      <li [routerLink]="['/settings']" routerLinkActive="active">
+        <i class="pi pi-cog"></i>
+        <span>Settings</span>
+      </li>
+      <li (click)="logout()">
+        <i class="pi pi-sign-out"></i>
+        <span>Logout</span>
+      </li>
+    </ul>
+  </div>
+</div>},F:\fearlessagency\userspacegate\src\app\components\sidebar\sidebar.component.scss{@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400..800&display=swap');
+.font-syne {
+  font-family: "Syne", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 800;
+  font-style: normal;
+}
+.p-sidebar {
+  background-color: #000;
+  color: #fff;
+  width: 250px;
+  padding: 1rem;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.p-sidebar-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.p-sidebar-logo h1 {
+  font-size: 1.5rem;
+  color: #fff;
+  margin: 0;
+}
+.user-profile {
+  display: flex;
+  align-items: center;
+  padding: 15px 10px;
+  background-color: rgba(255,255,255,0.05);
+  border-radius: 10px;
+  margin-bottom: 20px;
+}
+.avatar {
+  width: 40px;
+  height: 40px;
+  background-color: #ff9800;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  margin-right: 15px;
+}
+.user-info {
+  overflow: hidden;
+}
+.user-info h3 {
+  margin: 0 0 5px;
+  font-size: 1rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+.user-info p {
+  margin: 0;
+  font-size: 0.8rem;
+  opacity: 0.7;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+.p-sidebar-section {
+  margin-top: 20px;
+}
+.p-sidebar-section h3 {
+  font-size: 0.8rem;
+  margin-bottom: 10px;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.p-sidebar-section ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.p-sidebar-section ul li {
+  display: flex;
+  align-items: center;
+  padding: 12px 15px;
+  margin: 5px 0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+}
+.p-sidebar-section ul li:hover {
+  background-color: rgba(255,255,255,0.1);
+}
+.p-sidebar-section ul li.active {
+  background-color: rgba(0, 123, 255, 0.1);
+  position: relative;
+}
+.p-sidebar-section ul li.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background-color: #007bff;
+  border-radius: 0 3px 3px 0;
+}
+.p-sidebar-section ul li i {
+  font-size: 1.2rem;
+  color: #ff9800;
+  margin-right: 15px;
+  width: 20px;
+  text-align: center;
+}
+.p-sidebar-section ul li span {
+  flex: 1;
+  color: #fff;
+  font-size: 0.9rem;
+}},F:\fearlessagency\userspacegate\src\app\components\sidebar\sidebar.component.spec.ts{import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { SidebarComponent } from './sidebar.component';
+describe('SidebarComponent', () => {
+  let component: SidebarComponent;
+  let fixture: ComponentFixture<SidebarComponent>;
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [SidebarComponent]
+    })
+    .compileComponents();
+    fixture = TestBed.createComponent(SidebarComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+  });
+  it('should create', () => {
+    expect(component).toBeTruthy();
+  });
+});
+},F:\fearlessagency\userspacegate\src\app\components\sidebar\sidebar.component.ts{import { Component, OnInit } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
+import { MenuModule } from 'primeng/menu';
+import { BadgeModule } from 'primeng/badge';
+import { AvatarModule } from 'primeng/avatar';
+import { AuthService } from '../../services/auth.services';
+import { MessagesService } from '../../services/messages.service';
+@Component({
+  selector: 'app-sidebar',
+  standalone: true,
+  imports: [CommonModule, RouterModule, MenuModule, BadgeModule, AvatarModule],
+  templateUrl: './sidebar.component.html',
+  styleUrls: ['./sidebar.component.scss']
+})
+export class SidebarComponent implements OnInit {
+  user: any = null;
+  unreadMessages = 0;
+  
+  constructor(
+    private authService: AuthService,
+    private messagesService: MessagesService
+  ) {}
+  
+  ngOnInit() {
+    this.user = this.authService.getCurrentUser();
+    this.loadUnreadMessages();
+  }
+  
+  getUserInitials(): string {
+    if (!this.user?.fullName) return 'U';
+    
+    const nameParts = this.user.fullName.split(' ');
+    if (nameParts.length === 1) return nameParts[0].charAt(0).toUpperCase();
+    
+    return (nameParts[0].charAt(0) + nameParts[nameParts.length - 1].charAt(0)).toUpperCase();
+  }
+  
+  loadUnreadMessages() {
+    this.messagesService.getUnreadCount().subscribe(count => {
+      this.unreadMessages = count;
+    });
+  }
+  
+  logout() {
+    this.authService.logout();
+  }
+}},F:\fearlessagency\userspacegate\src\app\guards\auth.guard.ts{import { inject, PLATFORM_ID } from '@angular/core';
+import { Router, CanActivateFn } from '@angular/router';
+import { AuthService } from '../services/auth.services';
+import { isPlatformBrowser } from '@angular/common';
+export const authGuard: CanActivateFn = () => {
+  const authService = inject(AuthService);
+  const router = inject(Router);
+  const platformId = inject(PLATFORM_ID);
+  // During server-side rendering, always allow the route
+  // The real authentication check will happen on the client
+  if (!isPlatformBrowser(platformId)) {
+    return true;
+  }
+  
+  // Client-side authentication check
+  if (authService.isAuthenticated()) {
+    return true;
+  }
+  // Redirect to the React login page when on client
+  window.location.href = authService.getLoginUrl();
+  return false;
+};},F:\fearlessagency\userspacegate\src\app\interceptors\auth.interceptor.ts{import { Injectable } from '@angular/core';
+import {
+  HttpRequest,
+  HttpHandler,
+  HttpEvent,
+  HttpInterceptor,
+  HttpErrorResponse
+} from '@angular/common/http';
+import { Observable, throwError } from 'rxjs';
+import { catchError } from 'rxjs/operators';
+import { Router } from '@angular/router';
+import { AuthService } from '../services/auth.services';
+@Injectable()
+export class AuthInterceptor implements HttpInterceptor {
+  constructor(private router: Router, private authService: AuthService) {}
+  intercept(request: HttpRequest<unknown>, next: HttpHandler): Observable<HttpEvent<unknown>> {
+    // Get the auth token from local storage
+    const token = localStorage.getItem('token');
+    // Clone the request and add the authorization header
+    if (token) {
+      request = request.clone({
+        setHeaders: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+    }
+    // Handle 401 Unauthorized errors globally
+    return next.handle(request).pipe(
+      catchError((error: HttpErrorResponse) => {
+        if (error.status === 401) {
+          // Token expired or invalid
+          this.authService.logout();
+        }
+        return throwError(() => error);
+      })
+    );
+  }
+}},F:\fearlessagency\userspacegate\src\app\services\auth.services.ts{import { Injectable, PLATFORM_ID, Inject } from '@angular/core';
+import { Router } from '@angular/router';
+import { BehaviorSubject, Observable } from 'rxjs';
+import { environment } from '../../environments/environnment';
+import { HttpClient } from '@angular/common/http';
+import { isPlatformBrowser } from '@angular/common';
+interface User {
+  id: number;
+  fullName: string;
+  email: string;
+}
+@Injectable({
+  providedIn: 'root'
+})
+export class AuthService {
+  private currentUserSubject = new BehaviorSubject<User | null>(null);
+  public currentUser$: Observable<User | null> = this.currentUserSubject.asObservable();
+  private isBrowser: boolean;
+  
+  constructor(
+    private router: Router,
+    private http: HttpClient,
+    @Inject(PLATFORM_ID) platformId: Object
+  ) {
+    this.isBrowser = isPlatformBrowser(platformId);
+    this.loadUserFromStorage();
+  }
+  private loadUserFromStorage(): void {
+    // Only access localStorage in the browser
+    if (!this.isBrowser) {
+      return;
+    }
+    
+    const token = localStorage.getItem('token');
+    const userJson = localStorage.getItem('user');
+    
+    if (token && userJson) {
+      try {
+        const user = JSON.parse(userJson);
+        this.currentUserSubject.next(user);
+      } catch (e) {
+        console.error('Failed to parse user data:', e);
+        this.logout();
+      }
+    }
+  }
+  isAuthenticated(): boolean {
+    if (!this.isBrowser) {
+      // For SSR, assume not authenticated to let it render without login redirect
+      return false;
+    }
+    return !!localStorage.getItem('token');
+  }
+  getCurrentUser(): User | null {
+    return this.currentUserSubject.value;
+  }
+  getLoginUrl(): string {
+    return `${environment.frontendUrl}/sign-in`;
+  }
+  logout(): void {
+    if (this.isBrowser) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+    }
+    this.currentUserSubject.next(null);
+    window.location.href = this.getLoginUrl();
+  }
+  validateToken(): Observable<any> {
+    return this.http.get(`${environment.apiUrl}/api/auth/me`);
+  }
+}},F:\fearlessagency\userspacegate\src\app\services\booking.services.ts{import { Injectable } from '@angular/core';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { environment } from '../../environments/environnment';
+import { Observable } from 'rxjs';
+export interface bookingData {
+  service: string;
+  date: string;
+  time: string;
+  notes: string;
+  statuses: string;
+  user: {
+    name: string;
+    email: string;
+    phone: string;
+  };
+}
+@Injectable({
+  providedIn: 'root',
+})
+export class BookingService {
+  private apiUrl = environment.apiUrl;
+  constructor(private http: HttpClient) {}
+  createBooking(bookingData: bookingData): Observable<any> {
+    const headers = new HttpHeaders().set('Content-Type', 'application/json');
+    const payload = { data: bookingData }; // Wrap bookingData with `data` key
+    return this.http.post(`${this.apiUrl}/api/bookings`, payload, { headers });
+  }
+  getBookings(): Observable<any> {
+    return this.http.get(`${this.apiUrl}/api/bookings`);
+  }
+  updateBooking(id: string, bookingData: Partial<bookingData>): Observable<any> {
+    const headers = new HttpHeaders().set('Content-Type', 'application/json');
+    const payload = { data: bookingData }; // Wrap partial bookingData with `data` key
+    return this.http.put(`${this.apiUrl}/api/bookings/${id}`, payload, { headers });
+  }
+  deleteBooking(id: string): Observable<any> {
+    return this.http.delete(`${this.apiUrl}/api/bookings/${id}`);
+  }
+}
+},F:\fearlessagency\userspacegate\src\app\services\dashboard.services.ts{import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable, of } from 'rxjs';
+import { catchError, map } from 'rxjs/operators';
+import { environment } from '../../environments/environnment';
+@Injectable({
+  providedIn: 'root'
+})
+export class DashboardService {
+  
+  // Flag to use mock data instead of API calls
+  private useMockData = true;
+  
+  constructor(private http: HttpClient) { }
+  
+  getDashboardStats(): Observable<any> {
+    // If using mock data, return mock immediately without HTTP call
+    if (this.useMockData) {
+      return of({
+        totalBookings: 257,
+        pendingBookings: 18,
+        completedBookings: 239,
+        revenue: 15738.50,
+        revenueGrowth: 12.7,
+        bookingGrowth: 8.3
+      });
+    }
+    
+    // Otherwise make the real HTTP call with fallback
+    return this.http.get(`${environment.apiUrl}/dashboard/stats`).pipe(
+      catchError(error => {
+        console.error('Error loading dashboard stats:', error);
+        return of({
+          totalBookings: 0,
+          pendingBookings: 0,
+          completedBookings: 0,
+          revenue: 0,
+          revenueGrowth: 0,
+          bookingGrowth: 0
+        });
+      })
+    );
+  }
+  
+  getChartData(period: string = 'month'): Observable<any> {
+    // If using mock data, return appropriate mock data for the period
+    if (this.useMockData) {
+      if (period === 'week') {
+        return of({
+          labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+          bookings: [4, 7, 5, 8, 6, 9, 7],
+          revenue: [450, 650, 400, 700, 550, 800, 600]
+        });
+      } else if (period === 'year') {
+        return of({
+          labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+          bookings: [20, 25, 30, 28, 35, 40, 38, 42, 45, 48, 52, 55],
+          revenue: [1200, 1350, 1500, 1450, 1600, 1750, 1800, 1950, 2100, 2200, 2350, 2500]
+        });
+      } else { // month default
+        return of({
+          labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5'],
+          bookings: [22, 25, 28, 30, 32],
+          revenue: [1250, 1400, 1550, 1600, 1750]
+        });
+      }
+    }
+    
+    // Otherwise make the real HTTP call with fallback
+    return this.http.get(`${environment.apiUrl}/dashboard/chart-data`, {
+      params: { period }
+    }).pipe(
+      catchError(error => {
+        console.error('Error loading chart data:', error);
+        return of({
+          labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+          bookings: [0, 0, 0, 0, 0, 0],
+          revenue: [0, 0, 0, 0, 0, 0]
+        });
+      })
+    );
+  }
+  
+  getRecentBookings(): Observable<any[]> {
+    // If using mock data, return mock data without HTTP call
+    if (this.useMockData) {
+      return of([
+        {
+          id: 1,
+          customerName: 'Sarah Johnson',
+          service: 'Website Design',
+          date: '2025-05-18T14:00:00',
+          status: 'Completed',
+          amount: 499.99
+        },
+        {
+          id: 2,
+          customerName: 'Mark Thompson',
+          service: 'SEO Consultation',
+          date: '2025-05-19T09:30:00',
+          status: 'Pending',
+          amount: 199.99
+        },
+        {
+          id: 3,
+          customerName: 'Emily Davis',
+          service: 'Logo Design',
+          date: '2025-05-17T11:00:00',
+          status: 'Completed',
+          amount: 299.99
+        },
+        {
+          id: 4,
+          customerName: 'James Wilson',
+          service: 'Social Media Campaign',
+          date: '2025-05-20T15:30:00',
+          status: 'Pending',
+          amount: 349.99
+        },
+        {
+          id: 5,
+          customerName: 'Lisa Miller',
+          service: 'Content Writing',
+          date: '2025-05-18T10:15:00',
+          status: 'Completed',
+          amount: 249.99
+        }
+      ]);
+    }
+    
+    // Otherwise make the real HTTP call with fallback
+    return this.http.get<any[]>(`${environment.apiUrl}/bookings/recent`).pipe(
+      catchError(error => {
+        console.error('Error loading recent bookings:', error);
+        return of([]);
+      })
+    );
+  }
+  
+  getUserNotifications(): Observable<any[]> {
+    // If using mock data, return mock data without HTTP call
+    if (this.useMockData) {
+      return of([
+        {
+          id: 1,
+          type: 'booking',
+          message: 'New booking from Mark Thompson',
+          date: '2025-05-19T08:30:00',
+          read: false
+        },
+        {
+          id: 2,
+          type: 'system',
+          message: 'System maintenance scheduled for tonight',
+          date: '2025-05-19T07:15:00',
+          read: true
+        },
+        {
+          id: 3,
+          type: 'payment',
+          message: 'Payment received from Sarah Johnson',
+          date: '2025-05-18T16:45:00',
+          read: false
+        },
+        {
+          id: 4,
+          type: 'booking',
+          message: 'Booking updated by James Wilson',
+          date: '2025-05-18T14:20:00',
+          read: true
+        }
+      ]);
+    }
+    
+    // Otherwise make the real HTTP call with fallback
+    return this.http.get<any[]>(`${environment.apiUrl}/user/notifications`).pipe(
+      catchError(error => {
+        console.error('Error loading notifications:', error);
+        return of([]);
+      })
+    );
+  }
+}},F:\fearlessagency\userspacegate\src\app\services\messages.service.ts{import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable, of } from 'rxjs';
+import { environment } from '../../environments/environnment';
+@Injectable({
+  providedIn: 'root'
+})
+export class MessagesService {
+  constructor(private http: HttpClient) {}
+  getUnreadCount(): Observable<number> {
+    // Replace with actual API call when ready
+    return of(2); // Mock 2 unread messages
+    // return this.http.get<number>(`${environment.apiUrl}/api/messages/unread/count`);
+  }
+  getMessages(): Observable<any[]> {
+    // Replace with actual API call when ready
+    return of([
+      { 
+        id: 1,
+        sender: 'System',
+        subject: 'Welcome to the platform',
+        content: 'Thank you for joining our platform!', 
+        date: new Date(),
+        read: true 
+      },
+      { 
+        id: 2,
+        sender: 'Admin',
+        subject: 'Your booking was confirmed',
+        content: 'Your booking for a haircut on May 20th has been confirmed.',
+        date: new Date(),
+        read: false 
+      }
+    ]);
+    // return this.http.get<any[]>(`${environment.apiUrl}/api/messages`);
+  }
+}},F:\fearlessagency\userspacegate\src\app\app.component.html{<div class="app-container">
+  <div class="sidebar-container" [ngClass]="{'active': sidebarActive}">
+    <app-sidebar></app-sidebar>
+  </div>
+  
+  <div class="content-container">
+    <!-- Progress bar for route changes -->
+    <div class="progress-bar" [ngClass]="{'loading': isLoading}"></div>
+    
+    <main class="main-content">
+      <!-- This router-outlet replaces the hardcoded booking-form -->
+      <router-outlet></router-outlet>
+    </main>
+    
+    <app-footer></app-footer>
+  </div>
+  
+  <!-- Mobile menu toggle button -->
+  <button class="menu-button" (click)="toggleSidebar()">☰</button>
+</div>},F:\fearlessagency\userspacegate\src\app\app.component.scss{.app-container {
+  display: flex;
+  height: 100vh;
+  font-family: 'Arial', sans-serif;
+  background-color: #000000;
+}
+.sidebar-container {
+  flex: 0 0 250px;
+  height: 100vh;
+  position: fixed;
+  left: 0;
+  top: 0;
+  background: linear-gradient(180deg, #000, #000000);
+  color: #fff;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  overflow-y: auto;
+  transition: left 0.3s ease, background 0.3s ease;
+  z-index: 1000;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.2);
+}
+.content-container {
+  flex: 1;
+  margin-left: 250px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  transition: margin-left 0.3s ease;
+}
+.main-content {
+  flex: 1;
+  padding: 20px;
+  background-color: #181818;
+  overflow-y: auto;
+}
+/* Progress bar for route changes */
+.progress-bar {
+  height: 3px;
+  background: transparent;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1050;
+  transition: opacity 0.3s;
+  opacity: 0;
+}
+.progress-bar.loading {
+  background: linear-gradient(to right, #007bff, #42a5f5);
+  opacity: 1;
+  animation: loadingAnimation 2s infinite;
+}
+@keyframes loadingAnimation {
+  0% {
+    width: 0%;
+  }
+  50% {
+    width: 50%;
+  }
+  100% {
+    width: 100%;
+  }
+}
+/* Hamburger Menu */
+.menu-button {
+  display: none;
+  position: fixed;
+  top: 15px;
+  left: 15px;
+  z-index: 1100;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  padding: 10px;
+  font-size: 18px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+.menu-button:hover {
+  background: #0056b3;
+}
+/* Responsive Design */
+@media screen and (max-width: 768px) {
+  .sidebar-container {
+    left: -250px;
+  }
+  .sidebar-container.active {
+    left: 0;
+  }
+  .content-container {
+    margin-left: 0;
+  }
+  .menu-button {
+    display: block;
+  }
+}},F:\fearlessagency\userspacegate\src\app\app.component.spec.ts{import { TestBed } from '@angular/core/testing';
+import { AppComponent } from './app.component';
+describe('AppComponent', () => {
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [AppComponent],
+    }).compileComponents();
+  });
+  it('should create the app', () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance;
+    expect(app).toBeTruthy();
+  });
+  it(`should have the 'userspacegate' title`, () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance;
+    expect(app.title).toEqual('userspacegate');
+  });
+  it('should render title', () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('h1')?.textContent).toContain('Hello, userspacegate');
+  });
+});
+},F:\fearlessagency\userspacegate\src\app\app.component.ts{import { Component, OnInit, Inject, PLATFORM_ID } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
+import { HeaderComponent } from './components/header/header.component';
+import { FooterComponent } from './components/footer/footer.component';
+import { CommonModule } from '@angular/common';
+import { SidebarComponent } from './components/sidebar/sidebar.component';
+import { SidebarModule } from 'primeng/sidebar';
+import { ButtonModule } from 'primeng/button';
+import { RouterModule, Router, NavigationStart, NavigationEnd, NavigationCancel, NavigationError, Event as NavigationEvent } from '@angular/router';
+import { AuthService } from './services/auth.services';
+import { AuthDebugComponent } from './components/auth-debug/auth-debug.component';
+import { filter } from 'rxjs';
+@Component({
+  selector: 'app-root',
+  standalone: true,
+  imports: [
+    CommonModule,
+    FooterComponent,
+    SidebarComponent,
+    SidebarModule,
+    ButtonModule,
+    RouterModule
+    // Remove AuthDebugComponent if not used in template
+  ],
+  templateUrl: './app.component.html',
+  styleUrls: ['./app.component.scss']
+})
+export class AppComponent implements OnInit {
+  title = 'userspacegate';
+  sidebarActive = true; // Default to showing sidebar on desktop
+  isLoading = false;
+  
+  get isBrowser(): boolean {
+    return isPlatformBrowser(this.platformId);
+  }
+  constructor(
+    private router: Router,
+    private authService: AuthService,
+    @Inject(PLATFORM_ID) private platformId: any
+  ) {}
+ // Add this to AppComponent class
+private static initCount = 0;
+ngOnInit() {
+  // Track initialization count
+  AppComponent.initCount++;
+  console.log(`AppComponent initialized (count: ${AppComponent.initCount})`);
+  
+  // If initialized too many times, something is wrong
+  if (AppComponent.initCount > 2) {
+    console.error('AppComponent initialized too many times, possible loop');
+    // Add emergency bypass
+    sessionStorage.setItem('bypassAuth', 'true');
+  }
+  
+  // Only check authentication in browser environment
+  if (this.isBrowser) {
+    // Check if we're in emergency bypass mode
+    if (sessionStorage.getItem('bypassAuth') === 'true') {
+      console.warn('Emergency auth bypass active');
+      this.isLoading = false;
+      return;
+    }
+    
+    this.checkAuthentication();
+    
+    // Set up navigation loading indicator
+    this.setupNavigationEvents();
+    
+    // Adapt sidebar display for mobile devices
+    this.handleResponsiveLayout();
+  }
+}
+// Move router events to a separate method
+private setupNavigationEvents() {
+  this.router.events
+    .pipe(filter((e): e is NavigationEvent => 
+      e instanceof NavigationStart || 
+      e instanceof NavigationEnd || 
+      e instanceof NavigationCancel || 
+      e instanceof NavigationError))
+    .subscribe((event) => {
+      // Show loading indicator
+      if (event instanceof NavigationStart) {
+        this.isLoading = true;
+        console.log('Navigation start:', event.url);
+      }
+      
+      // Hide loading indicator
+      if (event instanceof NavigationEnd || 
+          event instanceof NavigationCancel ||
+          event instanceof NavigationError) {
+        console.log('Navigation complete:', event instanceof NavigationEnd ? event.url : 'cancelled/error');
+        setTimeout(() => {
+          this.isLoading = false;
+        }, 500);
+      }
+    });
+}
+  private checkAuthentication(): void {
+    if (!this.isBrowser) {
+      return;
+    }
+    
+    console.log('Checking authentication status');
+    
+    // Add anti-loop protection
+    const authCheckCount = parseInt(sessionStorage.getItem('authCheckCount') || '0');
+    sessionStorage.setItem('authCheckCount', (authCheckCount + 1).toString());
+    
+    if (authCheckCount > 5) {
+      console.error('Too many auth checks, emergency bypass activated');
+      sessionStorage.setItem('authCheckCount', '0');
+      // Force loading to false
+      this.isLoading = false;
+      return;
+    }
+    
+    if (!this.authService.isAuthenticated()) {
+      console.log('Not authenticated, redirecting to login');
+      
+      // Prevent multiple redirects
+      const lastRedirect = parseInt(sessionStorage.getItem('lastRedirect') || '0');
+      const now = Date.now();
+      
+      if (now - lastRedirect < 5000) { // Don't redirect twice within 5 seconds
+        console.warn('Redirect throttled, skipping');
+        return;
+      }
+      
+      sessionStorage.setItem('lastRedirect', now.toString());
+      window.location.href = this.authService.getLoginUrl();
+      return;
+    }
+    
+    // Reset counter after successful auth
+    sessionStorage.setItem('authCheckCount', '0');
+    
+    // Skip validation if already authenticated
+    console.log('Authenticated, skipping token validation for now');
+    // Commented out to prevent potential validation loop
+    // this.authService.validateToken().subscribe({
+    //   error: () => this.authService.logout()
+    // });
+  }
+  private handleResponsiveLayout(): void {
+    if (this.isBrowser) {
+      // Check if the screen is mobile-sized
+      const checkMobile = () => {
+        this.sidebarActive = window.innerWidth > 768;
+      };
+      // Initial check
+      checkMobile();
+      // Listen for resize events
+      window.addEventListener('resize', checkMobile);
+    }
+  }
+  toggleSidebar() {
+    this.sidebarActive = !this.sidebarActive;
+  }
+  
+}},F:\fearlessagency\userspacegate\src\app\app.config.server.ts{import { mergeApplicationConfig, ApplicationConfig } from '@angular/core';
+import { provideServerRendering } from '@angular/platform-server';
+import { provideServerRouting } from '@angular/ssr';
+import { appConfig } from './app.config';
+import { serverRoutes } from './app.routes.server';
+const serverConfig: ApplicationConfig = {
+  providers: [
+    provideServerRendering(),
+    provideServerRouting(serverRoutes)
+  ]
+};
+export const config = mergeApplicationConfig(appConfig, serverConfig);
+},F:\fearlessagency\userspacegate\src\app\app.config.ts{import { ApplicationConfig, provideZoneChangeDetection } from '@angular/core';
+import { provideRouter } from '@angular/router';
+import { provideHttpClient, withFetch } from '@angular/common/http';
+import { providePrimeNG } from 'primeng/config';
+import Aura from '@primeng/themes/aura';
+import { routes } from './app.routes';
+// import { provideClientHydration } from '@angular/platform-browser'; // <-- DISABLED
+import { provideAnimations } from '@angular/platform-browser/animations';
+export const appConfig: ApplicationConfig = {
+  providers: [
+    provideZoneChangeDetection({ eventCoalescing: true }),
+    provideRouter(routes),
+    // provideClientHydration(), // <-- DISABLED
+    provideHttpClient(withFetch()),
+    provideAnimations(),
+    providePrimeNG({
+      theme: {
+        preset: Aura,
+      },
+    }),
+  ],
+};},F:\fearlessagency\userspacegate\src\app\app.module.ts{import { NgModule } from '@angular/core';
+import { BrowserModule } from '@angular/platform-browser';
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
+import { RouterModule } from '@angular/router';
+import { HttpClientModule, HTTP_INTERCEPTORS } from '@angular/common/http';
+import { ReactiveFormsModule } from '@angular/forms';
+import { FlexLayoutModule } from '@angular/flex-layout';
+import { AppComponent } from './app.component';
+import { BookingFormComponent } from './components/booking-form/booking-form.components';
+import { HeaderComponent } from './components/header/header.component';
+import { FooterComponent } from './components/footer/footer.component';
+import { MaterialModule } from './material.module';
+import { MenuModule } from 'primeng/menu';
+import { routes } from './app.routes';
+import { BadgeModule } from 'primeng/badge';
+import { AvatarModule } from 'primeng/avatar';
+import { SidebarComponent } from './components/sidebar/sidebar.component';
+import { DividerModule } from 'primeng/divider';
+import { RippleModule } from 'primeng/ripple';
+import { MatButtonModule } from '@angular/material/button';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { FormsModule } from '@angular/forms';
+import { AuthInterceptor } from './interceptors/auth.interceptor';
+import { ButtonModule } from 'primeng/button';
+import { CardModule } from 'primeng/card';
+import { ChartModule } from 'primeng/chart';
+import { TableModule } from 'primeng/table';
+import { ProgressBarModule } from 'primeng/progressbar';
+@NgModule({
+  declarations: [
+    AppComponent,
+    BookingFormComponent,
+    SidebarComponent,
+    HeaderComponent,
+    FooterComponent,
+  ],
+  imports: [
+    BrowserModule,
+    BrowserAnimationsModule,
+    RouterModule.forRoot(routes),
+    HttpClientModule,
+    ReactiveFormsModule,
+    FlexLayoutModule,
+    MaterialModule,
+    HeaderComponent,
+    FooterComponent,
+    MenuModule,
+    BadgeModule,
+    AvatarModule,
+    SidebarComponent,
+    DividerModule,
+    RippleModule,
+    MatButtonModule,
+    MatTooltipModule,
+    FormsModule,
+    ButtonModule,
+    CardModule,
+    ChartModule,
+    TableModule,
+    ProgressBarModule,
+  ],
+  providers: [
+    {
+      provide: HTTP_INTERCEPTORS,
+      useClass: AuthInterceptor,
+      multi: true
+    }
+  ],
+  bootstrap: [AppComponent]
+})
+export class AppModule { }},F:\fearlessagency\userspacegate\src\app\app.routes.server.ts{import { RenderMode, ServerRoute } from '@angular/ssr';
+export const serverRoutes: ServerRoute[] = [
+  {
+    path: '**',
+    renderMode: RenderMode.Prerender
+  }
+];
+},F:\fearlessagency\userspacegate\src\app\app.routes.ts{// filepath: f:\fearlessagency\userspacegate\src\app\app.routes.ts
+import { Routes } from '@angular/router';
+import { BookingFormComponent } from './components/booking-form/booking-form.components';
+import { DashboardComponent } from './components/dashboard/dashboard.component';
+import { HeaderComponent } from './components/header/header.component';
+import { FooterComponent } from './components/footer/footer.component';
+import { authGuard } from './guards/auth.guard';
+import { ProfileComponent } from './components/profile/profile.component';
+import { MessagesComponent } from './components/messages/messages.component';
+export const routes: Routes = [
+  {
+    path: '',
+    redirectTo: 'dashboard',
+    pathMatch: 'full'
+  },
+  { path: 'booking', component: BookingFormComponent, canActivate: [authGuard], title: 'Book a Service' }, // Example route
+  { path: 'header', component: HeaderComponent },
+  { path: 'footer', component: FooterComponent },
+  { path: 'dashboard', component: DashboardComponent, canActivate: [authGuard], title: 'Dashboard' },
+  {
+    path: 'profile',
+    component: ProfileComponent,
+    canActivate: [authGuard],
+    title: 'User Profile'
+  },
+  {
+    path: 'messages',
+    component: MessagesComponent,
+    canActivate: [authGuard],
+    title: 'Messages'
+  },
+  {
+    path: '**',
+    redirectTo: 'dashboard'
+  }
+];},F:\fearlessagency\userspacegate\src\app\material.module.ts{import { NgModule } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
+import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatListModule } from '@angular/material/list';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatNativeDateModule } from '@angular/material/core';
+import { MatSelectModule } from '@angular/material/select';
+import { MatSidenavModule } from '@angular/material/sidenav';
+import { MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatToolbarModule } from '@angular/material/toolbar';
+@NgModule({
+  exports: [
+    MatButtonModule,
+    MatCardModule,
+    MatDatepickerModule,
+    MatIconModule,
+    MatInputModule,
+    MatListModule,
+    MatMenuModule,
+    MatNativeDateModule,
+    MatSelectModule,
+    MatSidenavModule,
+    MatSnackBarModule,
+    MatToolbarModule
+  ]
+})
+export class MaterialModule { }},F:\fearlessagency\userspacegate\src\environments\environnment.ts{// Development environment
+export const environment = {
+  production: false,
+  apiUrl: 'http://localhost:1337',
+  strapiApiToken: '898d4d265e6698d0384eb6bcfb83b6dfa0d56aea86a34a65ac20adde1c0183a8e0a57f61ff527af4b2e11b43e5e5e9c8abe2edef9f7b4211d1f30b11e6a64a120efa42b9bcc71121384d6683baa716c3eb2936514669577727b0b00e4d5fe79c1647156dc353c112ecd7434b14d3da4d22048fba0dc8a7adfbb1821d79322b21',
+  strapiUrl: 'http://localhost:1337', // Your Strapi URL
+  piUrl: 'http://localhost:1337/api',
+  frontendUrl: 'http://localhost:5173', // Fixed: removed trailing /sign-in
+};},F:\fearlessagency\userspacegate\src\index.html{<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Userspacegate</title>
+  <base href="/">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <!-- Existing Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400..800&display=swap" rel="stylesheet">
+  <!-- PrimeNG Resources -->
+  <link rel="stylesheet" href="node_modules/primeicons/primeicons.css">
+  <link rel="stylesheet" href="node_modules/primeng/resources/themes/lara-dark-blue/theme.css">
+  <link rel="stylesheet" href="node_modules/primeng/resources/primeng.min.css">
+</head>
+<body class="mat-typography">
+  <app-root></app-root>
+</body>
+</html>},F:\fearlessagency\userspacegate\src\main.server.ts{import { bootstrapApplication } from '@angular/platform-browser';
+import { AppComponent } from './app/app.component';
+import { config } from './app/app.config.server';
+const bootstrap = () => bootstrapApplication(AppComponent, config);
+export default bootstrap;
+},F:\fearlessagency\userspacegate\src\main.ts{import { bootstrapApplication } from '@angular/platform-browser';
+import { appConfig } from './app/app.config';
+import { AppComponent } from './app/app.component';
+bootstrapApplication(AppComponent, appConfig)
+  .catch((err) => console.error(err));
+},F:\fearlessagency\userspacegate\src\server.ts{import {
+  AngularNodeAppEngine,
+  createNodeRequestHandler,
+  isMainModule,
+  writeResponseToNodeResponse,
+} from '@angular/ssr/node';
+import express from 'express';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+const serverDistFolder = dirname(fileURLToPath(import.meta.url));
+const browserDistFolder = resolve(serverDistFolder, '../browser');
+const app = express();
+const angularApp = new AngularNodeAppEngine();
+/**
+ * Example Express Rest API endpoints can be defined here.
+ * Uncomment and define endpoints as necessary.
+ *
+ * Example:
+ * ```ts
+ * app.get('/api/**', (req, res) => {
+ *   // Handle API request
+ * });
+ * ```
+ */
+/**
+ * Serve static files from /browser
+ */
+app.use(
+  express.static(browserDistFolder, {
+    maxAge: '1y',
+    index: false,
+    redirect: false,
+  }),
+);
+/**
+ * Handle all other requests by rendering the Angular application.
+ */
+app.use('/**', (req, res, next) => {
+  angularApp
+    .handle(req)
+    .then((response) =>
+      response ? writeResponseToNodeResponse(response, res) : next(),
+    )
+    .catch(next);
+});
+/**
+ * Start the server if this module is the main entry point.
+ * The server listens on the port defined by the `PORT` environment variable, or defaults to 4000.
+ */
+if (isMainModule(import.meta.url)) {
+  const port = process.env['PORT'] || 4000;
+  app.listen(port, () => {
+    console.log(`Node Express server listening on http://localhost:${port}`);
+  });
+}
+/**
+ * Request handler used by the Angular CLI (for dev-server and during build) or Firebase Cloud Functions.
+ */
+export const reqHandler = createNodeRequestHandler(app);
+},F:\fearlessagency\userspacegate\src\styles.scss{
+// Custom Theming for Angular Material
+// For more information: https://material.angular.io/guide/theming
+@use '@angular/material' as mat;
+html {
+  @include mat.theme((
+    color: (
+      theme-type: light,
+      primary: mat.$violet-palette,
+      tertiary: mat.$blue-palette,
+    ),
+    typography: Roboto,
+    density: 0,
+  ));
+}/* You can add global styles to this file, and also import other style files */
+html, body { height: 100%; }
+body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
+},F:\fearlessagency\userspacegate\angular.json{{
+  "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
+  "version": 1,
+  "newProjectRoot": "projects",
+  "projects": {
+    "userspacegate": {
+      "projectType": "application",
+      "schematics": {
+        "@schematics/angular:component": {
+          "style": "scss"
+        }
+      },
+      "root": "",
+      "sourceRoot": "src",
+      "prefix": "app",
+      "architect": {
+        "build": {
+          "builder": "@angular-devkit/build-angular:application",
+          "options": {
+            "outputPath": "dist/userspacegate",
+            "index": "src/index.html",
+            "browser": "src/main.ts",
+            "polyfills": [
+              "zone.js"
+            ],
+            "tsConfig": "tsconfig.app.json",
+            "inlineStyleLanguage": "scss",
+            "assets": [
+              {
+                "glob": "**/*",
+                "input": "public",
+                "output": "/"
+              },
+              {
+                "glob": "favicon.ico",
+                "input": "src",
+                "output": "/"
+              },
+              {
+                "glob": "**/*",
+                "input": "src/assets",
+                "output": "/assets"
+              }
+            ],
+            "styles": [
+              "./node_modules/@angular/material/prebuilt-themes/indigo-pink.css",
+              "src/styles.scss"
+            ],
+            "scripts": [],
+            "server": "src/main.server.ts",
+            "outputMode": "server",
+            "ssr": {
+              "entry": "src/server.ts"
+            }
+          },
+          "configurations": {
+            "production": {
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "500kb",
+                  "maximumError": "2mb"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "4kb",
+                  "maximumError": "8kb"
+                }
+              ],
+              "outputHashing": "all"
+            },
+            "development": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "serve": {
+          "builder": "@angular-devkit/build-angular:dev-server",
+          "configurations": {
+            "production": {
+              "buildTarget": "userspacegate:build:production"
+            },
+            "development": {
+              "buildTarget": "userspacegate:build:development"
+            }
+          },
+          "defaultConfiguration": "development"
+        },
+        "extract-i18n": {
+          "builder": "@angular-devkit/build-angular:extract-i18n"
+        },
+        "test": {
+          "builder": "@angular-devkit/build-angular:karma",
+          "options": {
+            "polyfills": [
+              "zone.js",
+              "zone.js/testing"
+            ],
+            "tsConfig": "tsconfig.spec.json",
+            "inlineStyleLanguage": "scss",
+            "assets": [
+              {
+                "glob": "**/*",
+                "input": "public",
+                "output": "/"
+              },
+              {
+                "glob": "favicon.ico",
+                "input": "src",
+                "output": "/"
+              },
+              {
+                "glob": "**/*",
+                "input": "src/assets",
+                "output": "/assets"
+              }
+            ],
+            "styles": [
+              "node_modules/primeicons/primeicons.css",
+              "node_modules/primeng/resources/themes/lara-light-blue/theme.css",
+              "node_modules/primeng/resources/primeng.min.css",
+              "node_modules/primeicons/primeicons.css",
+              "./node_modules/@angular/material/prebuilt-themes/indigo-pink.css",
+              "src/styles.scss"
+            ],
+            "scripts": []
+          }
+        }
+      }
+    }
+  }
+}}.Yes, the above represents my previous implementation of the application, which unfortunately did not succeed. I’ve shared it to give you an idea of my approach at the time. However, I am not looking to replicate it. Instead, I require a solution that is more robust, standalone, and aligns perfectly with the specifications I have provided.
+
+Please ensure that all the code you deliver is complete, as I am requesting a brand-new application built entirely from scratch.
